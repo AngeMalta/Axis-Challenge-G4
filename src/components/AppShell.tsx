@@ -30,15 +30,15 @@ export function AxisLogo({ className }: { className?: string }) {
 type NavItem = { to: string; label: string; icon: typeof Map };
 
 const driverNav: NavItem[] = [
-  { to: "/app/map", label: "Mapa", icon: Map },
-  { to: "/app/history", label: "Recargas", icon: Zap },
+  { to: "/map", label: "Mapa", icon: Map },
+  { to: "/history", label: "Recargas", icon: Zap },
 ];
 
 const merchantNav: NavItem[] = [
-  { to: "/app/merchant", label: "Painel", icon: LayoutDashboard },
-  { to: "/app/merchant/chargers", label: "Carregadores", icon: Plug },
-  { to: "/app/merchant/reports", label: "Relatórios", icon: BarChart3 },
-  { to: "/app/map", label: "Mapa", icon: Map },
+  { to: "/merchant", label: "Painel", icon: LayoutDashboard },
+  { to: "/merchant/chargers", label: "Carregadores", icon: Plug },
+  { to: "/merchant/reports", label: "Relatórios", icon: BarChart3 },
+  { to: "/map", label: "Mapa", icon: Map },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -59,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
-          <Link to="/app/map">
+          <Link to="/map">
             <AxisLogo />
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
@@ -96,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenuLabel className="truncate">{profile?.display_name}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/app/profile">
+                  <Link to="/profile">
                     <User className="mr-2 size-4" /> Meu perfil
                   </Link>
                 </DropdownMenuItem>
@@ -131,10 +131,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
           <Link
-            to="/app/profile"
+            to="/profile"
             className={cn(
               "flex flex-1 flex-col items-center gap-1 rounded-lg py-1 text-[11px] font-medium",
-              pathname === "/app/profile" ? "text-primary" : "text-muted-foreground",
+              pathname === "/profile" ? "text-primary" : "text-muted-foreground",
             )}
           >
             <User className="size-5" />
