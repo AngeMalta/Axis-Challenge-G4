@@ -16,6 +16,7 @@ import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedChargerIdRouteImport } from './routes/_authenticated/charger.$id'
+import { Route as AuthenticatedMerchantIndexRouteImport } from './routes/_authenticated/merchant.index'
 import { Route as AuthenticatedSessionIdRouteImport } from './routes/_authenticated/session.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -52,6 +53,12 @@ const AuthenticatedChargerIdRoute = AuthenticatedChargerIdRouteImport.update({
   path: '/charger/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMerchantIndexRoute =
+  AuthenticatedMerchantIndexRouteImport.update({
+    id: '/merchant/',
+    path: '/merchant/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSessionIdRoute = AuthenticatedSessionIdRouteImport.update({
   id: '/session/$id',
   path: '/session/$id',
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/charger/$id': typeof AuthenticatedChargerIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
+  '/merchant/': typeof AuthenticatedMerchantIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,6 +83,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/charger/$id': typeof AuthenticatedChargerIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
+  '/merchant': typeof AuthenticatedMerchantIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +95,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/charger/$id': typeof AuthenticatedChargerIdRoute
   '/_authenticated/session/$id': typeof AuthenticatedSessionIdRoute
+  '/_authenticated/merchant/': typeof AuthenticatedMerchantIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/charger/$id'
     | '/session/$id'
+    | '/merchant/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/charger/$id'
     | '/session/$id'
+    | '/merchant'
   id:
     | '__root__'
     | '/'
@@ -116,6 +128,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/charger/$id'
     | '/_authenticated/session/$id'
+    | '/_authenticated/merchant/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChargerIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/merchant/': {
+      id: '/_authenticated/merchant/'
+      path: '/merchant'
+      fullPath: '/merchant/'
+      preLoaderRoute: typeof AuthenticatedMerchantIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/session/$id': {
       id: '/_authenticated/session/$id'
       path: '/session/$id'
@@ -191,6 +211,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedChargerIdRoute: typeof AuthenticatedChargerIdRoute
   AuthenticatedSessionIdRoute: typeof AuthenticatedSessionIdRoute
+  AuthenticatedMerchantIndexRoute: typeof AuthenticatedMerchantIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -199,6 +220,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedChargerIdRoute: AuthenticatedChargerIdRoute,
   AuthenticatedSessionIdRoute: AuthenticatedSessionIdRoute,
+  AuthenticatedMerchantIndexRoute: AuthenticatedMerchantIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
