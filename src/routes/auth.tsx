@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    mode: search['mode'] === "merchant" ? "merchant" : "driver",
+  validateSearch: (search: Record<string, unknown>): { mode?: "driver" | "merchant" } => ({
+    mode: search['mode'] === "merchant" ? "merchant" : search['mode'] === "driver" ? "driver" : undefined,
   }),
   head: () => ({
     meta: [
@@ -29,7 +29,7 @@ function AuthPage() {
   const { mode } = Route.useSearch();
   const navigate = useNavigate();
   const [tab, setTab] = useState<"signin" | "signup">("signin");
-  const [accountType, setAccountType] = useState<"driver" | "merchant">(mode);
+  const [accountType, setAccountType] = useState<"driver" | "merchant">(mode ?? "driver");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
