@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>): { mode?: "driver" | "merchant" } => ({
+  validateSearch: (search: Record<string, unknown>): { mode?: "driver" | "merchant" | undefined } => ({
     mode: search['mode'] === "merchant" ? "merchant" : search['mode'] === "driver" ? "driver" : undefined,
   }),
   head: () => ({
