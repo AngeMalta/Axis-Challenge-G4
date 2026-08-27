@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import {
   Area,
@@ -11,7 +10,6 @@ import {
   YAxis,
 } from "recharts";
 import { Activity, BatteryCharging, Plug, TrendingUp, Zap } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppShell";
 import { useMerchantData } from "@/hooks/useMerchantData";
 import { Badge } from "@/components/ui/badge";
