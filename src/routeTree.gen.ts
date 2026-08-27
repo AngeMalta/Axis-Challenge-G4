@@ -17,6 +17,8 @@ import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/ma
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedChargerIdRouteImport } from './routes/_authenticated/charger.$id'
 import { Route as AuthenticatedMerchantIndexRouteImport } from './routes/_authenticated/merchant.index'
+import { Route as AuthenticatedMerchantChargersRouteImport } from './routes/_authenticated/merchant.chargers'
+import { Route as AuthenticatedMerchantReportsRouteImport } from './routes/_authenticated/merchant.reports'
 import { Route as AuthenticatedSessionIdRouteImport } from './routes/_authenticated/session.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +61,18 @@ const AuthenticatedMerchantIndexRoute =
     path: '/merchant/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMerchantChargersRoute =
+  AuthenticatedMerchantChargersRouteImport.update({
+    id: '/merchant/chargers',
+    path: '/merchant/chargers',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMerchantReportsRoute =
+  AuthenticatedMerchantReportsRouteImport.update({
+    id: '/merchant/reports',
+    path: '/merchant/reports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSessionIdRoute = AuthenticatedSessionIdRouteImport.update({
   id: '/session/$id',
   path: '/session/$id',
@@ -72,6 +86,8 @@ export interface FileRoutesByFullPath {
   '/map': typeof AuthenticatedMapRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/charger/$id': typeof AuthenticatedChargerIdRoute
+  '/merchant/chargers': typeof AuthenticatedMerchantChargersRoute
+  '/merchant/reports': typeof AuthenticatedMerchantReportsRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
   '/merchant/': typeof AuthenticatedMerchantIndexRoute
 }
@@ -82,6 +98,8 @@ export interface FileRoutesByTo {
   '/map': typeof AuthenticatedMapRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/charger/$id': typeof AuthenticatedChargerIdRoute
+  '/merchant/chargers': typeof AuthenticatedMerchantChargersRoute
+  '/merchant/reports': typeof AuthenticatedMerchantReportsRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
   '/merchant': typeof AuthenticatedMerchantIndexRoute
 }
@@ -94,6 +112,8 @@ export interface FileRoutesById {
   '/_authenticated/map': typeof AuthenticatedMapRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/charger/$id': typeof AuthenticatedChargerIdRoute
+  '/_authenticated/merchant/chargers': typeof AuthenticatedMerchantChargersRoute
+  '/_authenticated/merchant/reports': typeof AuthenticatedMerchantReportsRoute
   '/_authenticated/session/$id': typeof AuthenticatedSessionIdRoute
   '/_authenticated/merchant/': typeof AuthenticatedMerchantIndexRoute
 }
@@ -106,6 +126,8 @@ export interface FileRouteTypes {
     | '/map'
     | '/profile'
     | '/charger/$id'
+    | '/merchant/chargers'
+    | '/merchant/reports'
     | '/session/$id'
     | '/merchant/'
   fileRoutesByTo: FileRoutesByTo
@@ -116,6 +138,8 @@ export interface FileRouteTypes {
     | '/map'
     | '/profile'
     | '/charger/$id'
+    | '/merchant/chargers'
+    | '/merchant/reports'
     | '/session/$id'
     | '/merchant'
   id:
@@ -127,6 +151,8 @@ export interface FileRouteTypes {
     | '/_authenticated/map'
     | '/_authenticated/profile'
     | '/_authenticated/charger/$id'
+    | '/_authenticated/merchant/chargers'
+    | '/_authenticated/merchant/reports'
     | '/_authenticated/session/$id'
     | '/_authenticated/merchant/'
   fileRoutesById: FileRoutesById
@@ -195,6 +221,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMerchantIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/merchant/chargers': {
+      id: '/_authenticated/merchant/chargers'
+      path: '/merchant/chargers'
+      fullPath: '/merchant/chargers'
+      preLoaderRoute: typeof AuthenticatedMerchantChargersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/merchant/reports': {
+      id: '/_authenticated/merchant/reports'
+      path: '/merchant/reports'
+      fullPath: '/merchant/reports'
+      preLoaderRoute: typeof AuthenticatedMerchantReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/session/$id': {
       id: '/_authenticated/session/$id'
       path: '/session/$id'
@@ -210,6 +250,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMapRoute: typeof AuthenticatedMapRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedChargerIdRoute: typeof AuthenticatedChargerIdRoute
+  AuthenticatedMerchantChargersRoute: typeof AuthenticatedMerchantChargersRoute
+  AuthenticatedMerchantReportsRoute: typeof AuthenticatedMerchantReportsRoute
   AuthenticatedSessionIdRoute: typeof AuthenticatedSessionIdRoute
   AuthenticatedMerchantIndexRoute: typeof AuthenticatedMerchantIndexRoute
 }
@@ -219,6 +261,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMapRoute: AuthenticatedMapRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedChargerIdRoute: AuthenticatedChargerIdRoute,
+  AuthenticatedMerchantChargersRoute: AuthenticatedMerchantChargersRoute,
+  AuthenticatedMerchantReportsRoute: AuthenticatedMerchantReportsRoute,
   AuthenticatedSessionIdRoute: AuthenticatedSessionIdRoute,
   AuthenticatedMerchantIndexRoute: AuthenticatedMerchantIndexRoute,
 }
