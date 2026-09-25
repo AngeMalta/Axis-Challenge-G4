@@ -2,26 +2,43 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 type Theme = "light" | "dark";
 
+// Used when there is no saved preference (new visitors, cleared storage).
+const DEFAULT_THEME: Theme = "light";
+
 const ThemeContext = createContext<{ theme: Theme; setTheme: (t: Theme) => void; toggle: () => void }>({
-  theme: "dark",
+  theme: DEFAULT_THEME,
   setTheme: () => {},
   toggle: () => {},
 });
 
-export const themeScript = `(function(){try{var t=localStorage.getItem('axis-theme')||'dark';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();`;
+const readStoredTheme = (): Theme => {
+  try {
+    const stored = localStorage.getItem("axis-theme");
+    return stored === "dark" || stored === "light" ? stored : DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+};
+
+export const themeScript = `(function(){try{var s=localStorage.getItem('axis-theme');var t=s==='dark'||s==='light'?s:'${DEFAULT_THEME}';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();`;
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
 
   useEffect(() => {
-    const stored = (localStorage.getItem("axis-theme") as Theme | null) ?? "dark";
+    const stored = readStoredTheme();
     setThemeState(stored);
     document.documentElement.classList.toggle("dark", stored === "dark");
+    document.documentElement.style.colorScheme = stored;
   }, []);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
-    localStorage.setItem("axis-theme", t);
+    try {
+      localStorage.setItem("axis-theme", t);
+    } catch {
+      // Storage blocked: the choice still applies to this page view.
+    }
     document.documentElement.classList.toggle("dark", t === "dark");
     document.documentElement.style.colorScheme = t;
   }, []);
