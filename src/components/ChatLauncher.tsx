@@ -6,7 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ChatbotError,
   chatbotEnabled,
+  loadChatSession,
   newThreadId,
+  saveChatSession,
   sendChatMessage,
   type ChatMessage,
 } from "@/lib/chatbot";
@@ -18,40 +20,8 @@ const suggestions = [
   "Como funciona a recarga pelo AXIS?",
 ];
 
-// The server keeps the history per thread_id; we keep the id (and a copy of the
-// messages to redraw them) for this browser tab only.
-const THREAD_KEY = "axis-chat-thread";
-const MESSAGES_KEY = "axis-chat-messages";
-
 // After this long without a reply, explain that the server may be waking up.
 const SLOW_REPLY_MS = 5000;
-
-function readSession<T>(key: string, fallback: T): T {
-  try {
-    const raw = sessionStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeSession(key: string, value: unknown) {
-  try {
-    sessionStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage blocked (private mode etc.): the chat still works for this page view.
-  }
-}
-
-/** Forget the conversation in this tab, e.g. when the user signs out. */
-export function clearChatSession() {
-  try {
-    sessionStorage.removeItem(THREAD_KEY);
-    sessionStorage.removeItem(MESSAGES_KEY);
-  } catch {
-    // Nothing to clear.
-  }
-}
 
 /**
  * Floating button that opens the AXIS assistant. Sits above the mobile bottom
@@ -59,8 +29,8 @@ export function clearChatSession() {
  */
 export function ChatLauncher() {
   const [open, setOpen] = useState(false);
-  const [threadId, setThreadId] = useState(() => readSession(THREAD_KEY, "") || newThreadId());
-  const [messages, setMessages] = useState<ChatMessage[]>(() => readSession(MESSAGES_KEY, []));
+  const [threadId, setThreadId] = useState(() => loadChatSession().threadId || newThreadId());
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadChatSession().messages);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [slow, setSlow] = useState(false);
@@ -69,11 +39,11 @@ export function ChatLauncher() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => writeSession(THREAD_KEY, threadId), [threadId]);
-  useEffect(() => writeSession(MESSAGES_KEY, messages), [messages]);
+  useEffect(() => saveChatSession(threadId, messages), [threadId, messages]);
 
   useEffect(() => {
-    if (!chatbotEnabled) console.warn("[AXIS] Chatbot desativado: defina VITE_CHATBOT_API_URL no .env");
+    if (!chatbotEnabled)
+      console.warn("[AXIS] Chatbot desativado: defina VITE_CHATBOT_API_URL no .env");
   }, []);
 
   useEffect(() => {
@@ -84,7 +54,6 @@ export function ChatLauncher() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -114,7 +83,9 @@ export function ChatLauncher() {
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
     } catch (err) {
       const text =
-        err instanceof ChatbotError ? err.message : "Algo deu errado ao falar com o assistente. Tente de novo.";
+        err instanceof ChatbotError
+          ? err.message
+          : "Algo deu errado ao falar com o assistente. Tente de novo.";
       setError({ text, question });
     } finally {
       setPending(false);
@@ -180,7 +151,9 @@ export function ChatLauncher() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-sm font-semibold">Assistente AXIS</h2>
-              <p className="truncate text-xs text-muted-foreground">Preços, disponibilidade e dúvidas sobre o site</p>
+              <p className="truncate text-xs text-muted-foreground">
+                Preços, disponibilidade e dúvidas sobre o site
+              </p>
             </div>
             {messages.length > 0 && (
               <Button
@@ -222,7 +195,8 @@ export function ChatLauncher() {
                 {messages.length === 0 && (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
-                      Olá! Posso ajudar com preços, disponibilidade dos carregadores e dúvidas sobre o AXIS.
+                      Olá! Posso ajudar com preços, disponibilidade dos carregadores e dúvidas sobre
+                      o AXIS.
                     </p>
                     <div className="flex flex-col items-start gap-2">
                       {suggestions.map((s) => (
@@ -260,10 +234,13 @@ export function ChatLauncher() {
                 {pending && (
                   <div className="w-fit max-w-[90%] rounded-2xl rounded-bl-md bg-muted px-3.5 py-2 text-sm text-muted-foreground">
                     <span className="inline-flex items-center gap-2">
-                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> Pensando...
+                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />{" "}
+                      Pensando...
                     </span>
                     {slow && (
-                      <p className="mt-1 text-xs">Conectando ao assistente, isso pode levar até 1 minuto.</p>
+                      <p className="mt-1 text-xs">
+                        Conectando ao assistente, isso pode levar até 1 minuto.
+                      </p>
                     )}
                   </div>
                 )}
@@ -271,7 +248,12 @@ export function ChatLauncher() {
                 {error && (
                   <div className="space-y-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm">
                     <p className="text-destructive">{error.text}</p>
-                    <Button size="sm" variant="outline" className="h-8" onClick={() => void ask(error.question)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      onClick={() => void ask(error.question)}
+                    >
                       Tentar de novo
                     </Button>
                   </div>

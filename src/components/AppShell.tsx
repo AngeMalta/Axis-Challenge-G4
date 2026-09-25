@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ChatLauncher, clearChatSession } from "@/components/ChatLauncher";
+import { ChatLauncher } from "@/components/ChatLauncher";
+import { clearChatSession } from "@/lib/chatbot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {

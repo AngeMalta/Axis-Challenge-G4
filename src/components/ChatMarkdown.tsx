@@ -19,6 +19,8 @@ const ORDERED = /^(\s*)(\d+)[.)]\s+(.*)$/;
 const BULLET = /^(\s*)[-*+•]\s+(.*)$/;
 const HEADING = /^\s*#{1,6}\s+(.*)$/;
 
+const lastOf = <T,>(items: T[]): T | undefined => items[items.length - 1];
+
 function parse(source: string): Block[] {
   const blocks: Block[] = [];
   let inPara = false;
@@ -38,7 +40,7 @@ function parse(source: string): Block[] {
     }
     const heading = line.match(HEADING);
     if (heading) {
-      blocks.push({ kind: "heading", text: heading[1] });
+      blocks.push({ kind: "heading", text: heading[1] ?? "" });
       inPara = false;
       continue;
     }
@@ -46,17 +48,17 @@ function parse(source: string): Block[] {
     const ordered = line.match(ORDERED);
     const bullet = ordered ? null : line.match(BULLET);
     if (ordered || bullet) {
-      const indent = (ordered ? ordered[1] : bullet![1]).length;
+      const indent = ((ordered ? ordered[1] : bullet?.[1]) ?? "").length;
       const isOrdered = Boolean(ordered);
-      const text = ordered ? ordered[3] : bullet![2];
+      const text = (ordered ? ordered[3] : bullet?.[2]) ?? "";
       const start = ordered ? Number(ordered[2]) : 1;
       const item: ListItem = { lines: [text], children: [] };
       inPara = false;
 
       // Indented items nest under the previous top-level item.
-      if (indent >= 2 && last?.kind === "list" && last.items.length) {
-        const parent = last.items[last.items.length - 1];
-        const sub = parent.children[parent.children.length - 1];
+      const parent = last?.kind === "list" ? lastOf(last.items) : undefined;
+      if (indent >= 2 && parent) {
+        const sub = lastOf(parent.children);
         if (sub && sub.ordered === isOrdered) sub.items.push(item);
         else parent.children.push({ kind: "list", ordered: isOrdered, start, items: [item] });
         continue;
@@ -68,10 +70,10 @@ function parse(source: string): Block[] {
     }
 
     // Indented text right after a list item continues that item.
-    if (/^\s{2,}/.test(raw) && last?.kind === "list" && last.items.length) {
-      const item = last.items[last.items.length - 1];
-      const sub = item.children[item.children.length - 1];
-      const target = sub ? sub.items[sub.items.length - 1] : item;
+    const lastItem = last?.kind === "list" ? lastOf(last.items) : undefined;
+    if (/^\s{2,}/.test(raw) && lastItem) {
+      const sub = lastOf(lastItem.children);
+      const target = (sub && lastOf(sub.items)) ?? lastItem;
       target.lines.push(line.trim());
       continue;
     }
@@ -88,7 +90,10 @@ const INLINE = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*\s][^*]*\*)/g;
 function inline(text: string): ReactNode[] {
   return text.split(INLINE).map((part, i) => {
     if (!part) return null;
-    if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("__") && part.endsWith("__"))) {
+    if (
+      (part.startsWith("**") && part.endsWith("**")) ||
+      (part.startsWith("__") && part.endsWith("__"))
+    ) {
       return (
         <strong key={i} className="font-semibold">
           {part.slice(2, -2)}
