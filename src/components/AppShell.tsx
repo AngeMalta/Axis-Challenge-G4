@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ChatLauncher, clearChatSession } from "@/components/ChatLauncher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nav = isMerchant ? merchantNav : driverNav;
 
   const signOut = async () => {
+    clearChatSession();
     await supabase.auth.signOut();
     navigate({ to: "/" });
   };
@@ -121,6 +123,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         {children}
       </main>
+
+      <ChatLauncher />
 
       <nav
         aria-label="Navegação principal"
