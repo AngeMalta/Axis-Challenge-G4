@@ -1,16 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Clock, Crosshair, List, Map as MapIcon, Navigation, Search, X } from "lucide-react";
+import { Clock, Crosshair, List, Map as MapIcon, Navigation, Search, X, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MapCanvas } from "@/components/MapCanvas";
 import { ChargerImage } from "@/components/ChargerImage";
+import { EmptyState } from "@/components/Panel";
+import { StatusBadge } from "@/components/StatusBadge";
 import { chargerCover } from "@/constants/chargerImages";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BRL, distanceKm, driveMinutes, formatKm, num, SAO_PAULO, statusLabel, statusTone } from "@/lib/axis";
+import { Skeleton } from "@/components/ui/skeleton";
+import { BRL, distanceKm, driveMinutes, formatKm, num, SAO_PAULO } from "@/lib/axis";
+import { statusRail } from "@/lib/status";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/map")({
   head: () => ({
@@ -128,9 +132,10 @@ function MapPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="available">Disponível</SelectItem>
-              <SelectItem value="occupied">Ocupado</SelectItem>
+              <SelectItem value="available">Livre</SelectItem>
+              <SelectItem value="occupied">Em uso</SelectItem>
               <SelectItem value="maintenance">Manutenção</SelectItem>
+              <SelectItem value="offline">Indisponível</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sort} onValueChange={setSort}>
@@ -148,7 +153,7 @@ function MapPage() {
         <div
           role="tablist"
           aria-label="Modo de visualização"
-          className="grid grid-cols-2 rounded-full border border-border bg-muted p-1 lg:hidden"
+          className="grid grid-cols-2 rounded-lg border border-border bg-muted p-0.5 lg:hidden"
         >
           {(
             [
@@ -161,8 +166,8 @@ function MapPage() {
               role="tab"
               aria-selected={mobileView === v.key}
               onClick={() => setMobileView(v.key)}
-              className={`inline-flex items-center justify-center gap-2 rounded-full py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                mobileView === v.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              className={`inline-flex h-8 items-center justify-center gap-2 rounded-[7px] text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                mobileView === v.key ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"
               }`}
             >
               <v.icon className="size-4" />
@@ -174,24 +179,44 @@ function MapPage() {
 
       {/* List */}
       <div
-        className={`min-h-0 space-y-3 overflow-y-auto overscroll-contain pr-1 lg:col-start-1 lg:row-start-2 lg:block ${
+        className={`min-h-0 space-y-2 overflow-y-auto overscroll-contain pr-1 lg:col-start-1 lg:row-start-2 lg:block ${
           mobileView === "list" ? "row-start-2" : "hidden"
         }`}
+        aria-busy={isLoading}
       >
-        {isLoading && <p className="text-sm text-muted-foreground">Carregando carregadores...</p>}
+        {isLoading &&
+          Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="flex gap-3 rounded-lg border border-border bg-card p-2.5">
+              <Skeleton className="size-14 shrink-0 rounded-md" />
+              <div className="flex-1 space-y-2 py-1">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-3 w-3/4" />
+              </div>
+            </div>
+          ))}
         {!isLoading && list.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhum carregador encontrado com esses filtros.</p>
+          <EmptyState
+            icon={<Search />}
+            title="Nenhum carregador encontrado"
+            description="Tente outro nome, endereço ou status."
+            className="rounded-lg border border-dashed border-border"
+          />
         )}
         {list.map((c) => (
           <button
             key={c.id}
             onClick={() => pickFromList(c.id)}
             aria-pressed={selected === c.id}
-            className={`flex w-full gap-3 rounded-2xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              selected === c.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-accent/50"
-            }`}
+            className={cn(
+              "relative flex w-full gap-3 rounded-lg border bg-card py-2.5 pl-3.5 pr-2.5 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              statusRail(c.status),
+              selected === c.id
+                ? "border-foreground/35 shadow-sm"
+                : "border-border shadow-xs hover:border-foreground/20 hover:bg-accent/40",
+            )}
           >
-            <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-muted sm:size-20">
+            <div className="size-14 shrink-0 overflow-hidden rounded-md bg-muted">
               <ChargerImage
                 src={chargerCover(c.photos, c.id)}
                 seed={c.id}
@@ -201,21 +226,21 @@ function MapPage() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="truncate font-semibold">{c.name}</h3>
-                <Badge variant="outline" className={`shrink-0 ${statusTone[c.status] ?? ""}`}>
-                  {statusLabel[c.status]}
-                </Badge>
+                <h3 className="truncate text-sm font-semibold leading-5">{c.name}</h3>
+                <StatusBadge status={c.status} />
               </div>
               <p className="truncate text-xs text-muted-foreground">{c.address}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span className="font-semibold text-primary">{BRL(num(c.price_per_kwh))}/kWh</span>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground figures">
+                <span className="font-semibold text-foreground">{BRL(num(c.price_per_kwh))}/kWh</span>
                 <span className="inline-flex items-center gap-1">
                   <Navigation className="size-3" /> {formatKm(c.km)}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Clock className="size-3" /> {c.eta} min
                 </span>
-                <span>{num(c.power_kw)} kW</span>
+                <span className="inline-flex items-center gap-1">
+                  <Zap className="size-3" /> {num(c.power_kw)} kW
+                </span>
               </div>
             </div>
           </button>
@@ -224,7 +249,7 @@ function MapPage() {
 
       {/* Map */}
       <div
-        className={`relative min-h-0 overflow-hidden rounded-2xl border border-border lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:block ${
+        className={`relative min-h-0 overflow-hidden rounded-lg border border-border shadow-xs lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:block ${
           mobileView === "map" ? "row-start-2" : "hidden"
         }`}
       >
@@ -238,8 +263,8 @@ function MapPage() {
 
         {selectedCharger && (
           // Right margin on phones leaves room for the chat launcher.
-          <div className="absolute inset-x-2 bottom-2 z-[1000] mr-[4.25rem] flex items-center gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-lg backdrop-blur sm:inset-x-3 sm:bottom-3 md:mr-0 md:max-w-md">
-            <div className="size-12 shrink-0 overflow-hidden rounded-xl bg-muted">
+          <div className="absolute inset-x-2 bottom-2 z-[1000] mr-[4.25rem] flex items-center gap-3 rounded-lg border border-border bg-card/95 p-2.5 shadow-md backdrop-blur-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 sm:inset-x-3 sm:bottom-3 md:mr-0 md:max-w-md">
+            <div className="size-14 shrink-0 overflow-hidden rounded-md bg-muted">
               <ChargerImage
                 src={chargerCover(selectedCharger.photos, selectedCharger.id)}
                 seed={selectedCharger.id}
@@ -247,12 +272,18 @@ function MapPage() {
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-sm font-semibold">{selectedCharger.name}</h3>
-              <p className="truncate text-xs text-muted-foreground">
-                {formatKm(selectedCharger.km)} · {selectedCharger.eta} min ·{" "}
-                {BRL(num(selectedCharger.price_per_kwh))}/kWh
+              <div className="flex items-center gap-2">
+                <h3 className="truncate text-sm font-semibold">{selectedCharger.name}</h3>
+                <StatusBadge status={selectedCharger.status} />
+              </div>
+              <p className="mt-0.5 flex gap-3 text-xs text-muted-foreground figures">
+                <span className="font-medium text-foreground">
+                  {BRL(num(selectedCharger.price_per_kwh))}/kWh
+                </span>
+                <span>{formatKm(selectedCharger.km)}</span>
+                <span>{selectedCharger.eta} min de carro</span>
               </p>
-              <Button asChild size="sm" className="mt-2 h-8">
+              <Button asChild size="sm" className="mt-2 h-7">
                 <Link to="/charger/$id" params={{ id: selectedCharger.id }}>
                   Ver detalhes
                 </Link>

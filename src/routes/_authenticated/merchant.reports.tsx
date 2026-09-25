@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -12,7 +12,9 @@ import {
 } from "recharts";
 import { PageHeader } from "@/components/AppShell";
 import { useMerchantData } from "@/hooks/useMerchantData";
-import { BRL, downloadCsv, num, toCsv } from "@/lib/axis";
+import { Panel, PanelHeader } from "@/components/Panel";
+import { Metric, MetricStrip } from "@/components/Metric";
+import { BRL, downloadCsv, fmt, num, toCsv } from "@/lib/axis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +52,8 @@ function Reports() {
     return iso(d);
   });
   const [to, setTo] = useState(() => iso(new Date()));
+  const [sessionStatus, setSessionStatus] = useState("all");
+  const [page, setPage] = useState(1);
 
   const applyPreset = (v: string) => {
     setPreset(v);
@@ -118,23 +122,28 @@ function Reports() {
     downloadCsv(`axis-relatorio-${from}_${to}.csv`, toCsv(rows));
   };
 
+  const sessionRows = filtered.filter((s) => sessionStatus === "all" || s.status === sessionStatus);
+  const pageCount = Math.max(1, Math.ceil(sessionRows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = sessionRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const chargerName = (id: string) => chargers.find((c) => c.id === id)?.name ?? "—";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
-        title="Relatórios comerciais"
-        subtitle="Receita detalhada por carregador e período"
+        title="Relatórios"
+        subtitle="Receita e energia por carregador no período escolhido"
         action={
-          <Button onClick={exportCsv} disabled={!filtered.length}>
-            <Download className="mr-2 size-4" /> Exportar CSV
+          <Button onClick={exportCsv} disabled={!filtered.length} variant="outline" size="sm">
+            <Download /> Exportar CSV
           </Button>
         }
       />
 
-      <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 md:grid-cols-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Período</Label>
+      <Panel className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))]">
+        <FilterField label="Período">
           <Select value={preset} onValueChange={applyPreset}>
-            <SelectTrigger>
+            <SelectTrigger aria-label="Período">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -145,10 +154,10 @@ function Reports() {
               <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">De</Label>
+        </FilterField>
+        <FilterField label="De" htmlFor="rep-from">
           <Input
+            id="rep-from"
             type="date"
             value={from}
             onChange={(e) => {
@@ -156,10 +165,10 @@ function Reports() {
               setFrom(e.target.value);
             }}
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Até</Label>
+        </FilterField>
+        <FilterField label="Até" htmlFor="rep-to">
           <Input
+            id="rep-to"
             type="date"
             value={to}
             onChange={(e) => {
@@ -167,15 +176,14 @@ function Reports() {
               setTo(e.target.value);
             }}
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Carregador</Label>
+        </FilterField>
+        <FilterField label="Carregador">
           <Select value={chargerId} onValueChange={setChargerId}>
-            <SelectTrigger>
+            <SelectTrigger aria-label="Carregador">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos os carregadores</SelectItem>
               {chargers.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
@@ -183,80 +191,234 @@ function Reports() {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </FilterField>
+      </Panel>
+
+      <MetricStrip>
+        <Metric label="Receita" value={BRL(totals.receita)} emphasis />
+        <Metric label="Energia" value={fmt(totals.energia, 1)} unit="kWh" />
+        <Metric label="Recargas" value={totals.sessoes} />
+        <Metric label="Tempo carregando" value={totals.minutos} unit="min" />
+      </MetricStrip>
+
+      <div className="grid gap-4 xl:grid-cols-5">
+        <Panel className="xl:col-span-2">
+          <PanelHeader title="Receita por carregador" />
+          <div className="h-64 px-2 pb-2 pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byCharger} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="var(--color-border)" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  interval={0}
+                  tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+                  tickFormatter={(v: string) => (v.length > 12 ? `${v.slice(0, 11)}…` : v)}
+                />
+                <YAxis
+                  width={48}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+                />
+                <ReTooltip
+                  cursor={{ fill: "var(--color-muted)" }}
+                  contentStyle={chartTooltip}
+                  formatter={(v: number) => [BRL(v), "Receita"]}
+                />
+                <Bar dataKey="receita" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel className="overflow-hidden xl:col-span-3">
+          <PanelHeader title="Por carregador" description={`${byCharger.length} no filtro`} />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Carregador</TableHead>
+                <TableHead className="text-right">Recargas</TableHead>
+                <TableHead className="text-right">Energia</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Minutos</TableHead>
+                <TableHead className="hidden text-right md:table-cell">Ticket médio</TableHead>
+                <TableHead className="text-right">Receita</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {byCharger.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="max-w-[12rem] truncate font-medium">{r.name}</TableCell>
+                  <TableCell className="text-right">{r.sessoes}</TableCell>
+                  <TableCell className="text-right">{fmt(r.energia, 2)} kWh</TableCell>
+                  <TableCell className="hidden text-right sm:table-cell">{r.minutos}</TableCell>
+                  <TableCell className="hidden text-right md:table-cell">{BRL(r.ticket)}</TableCell>
+                  <TableCell className="text-right font-semibold">{BRL(r.receita)}</TableCell>
+                </TableRow>
+              ))}
+              {byCharger.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                    Nenhum carregador no filtro escolhido.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Panel>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Receita" value={BRL(totals.receita)} accent />
-        <Kpi label="Energia" value={`${totals.energia.toFixed(1)} kWh`} />
-        <Kpi label="Sessões" value={String(totals.sessoes)} />
-        <Kpi label="Tempo carregando" value={`${totals.minutos} min`} />
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Receita por carregador</h2>
-        <div className="mt-4 h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={byCharger}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <ReTooltip
-                contentStyle={{
-                  background: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 12,
-                }}
-                formatter={(v: number) => BRL(v)}
-              />
-              <Bar dataKey="receita" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+      <Panel className="overflow-hidden">
+        <PanelHeader
+          title="Recargas"
+          description={`${sessionRows.length} no período`}
+          actions={
+            <Select
+              value={sessionStatus}
+              onValueChange={(v) => {
+                setSessionStatus(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-8 w-40 text-xs" aria-label="Filtrar recargas por status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="active">Em andamento</SelectItem>
+                <SelectItem value="completed">Concluídas</SelectItem>
+                <SelectItem value="cancelled">Canceladas</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+        />
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Início</TableHead>
               <TableHead>Carregador</TableHead>
-              <TableHead className="text-right">Sessões</TableHead>
+              <TableHead className="hidden sm:table-cell">Status</TableHead>
               <TableHead className="text-right">Energia</TableHead>
-              <TableHead className="text-right">Minutos</TableHead>
-              <TableHead className="text-right">Ticket médio</TableHead>
-              <TableHead className="text-right">Receita</TableHead>
+              <TableHead className="hidden text-right md:table-cell">Minutos</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {byCharger.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.name}</TableCell>
-                <TableCell className="text-right">{r.sessoes}</TableCell>
-                <TableCell className="text-right">{r.energia.toFixed(2)} kWh</TableCell>
-                <TableCell className="text-right">{r.minutos}</TableCell>
-                <TableCell className="text-right">{BRL(r.ticket)}</TableCell>
-                <TableCell className="text-right font-semibold text-primary">{BRL(r.receita)}</TableCell>
+            {pageRows.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="whitespace-nowrap text-muted-foreground">
+                  {new Date(s.started_at).toLocaleString("pt-BR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </TableCell>
+                <TableCell className="max-w-[10rem] truncate font-medium">{chargerName(s.charger_id)}</TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  <SessionBadge status={s.status} />
+                </TableCell>
+                <TableCell className="text-right">{fmt(num(s.energy_kwh), 2)} kWh</TableCell>
+                <TableCell className="hidden text-right md:table-cell">{s.minutes}</TableCell>
+                <TableCell className="text-right font-medium">{BRL(num(s.cost))}</TableCell>
               </TableRow>
             ))}
-            {byCharger.length === 0 && (
+            {pageRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
-                  Sem dados no período selecionado.
+                <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                  Nenhuma recarga no período e status escolhidos.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </div>
+        {sessionRows.length > PAGE_SIZE && (
+          <footer className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
+            <span className="figures">
+              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, sessionRows.length)} de{" "}
+              {sessionRows.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                aria-label="Página anterior"
+                disabled={currentPage <= 1}
+                onClick={() => setPage(currentPage - 1)}
+              >
+                <ChevronLeft />
+              </Button>
+              <span className="px-2 figures">
+                {currentPage} / {pageCount}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                aria-label="Próxima página"
+                disabled={currentPage >= pageCount}
+                onClick={() => setPage(currentPage + 1)}
+              >
+                <ChevronRight />
+              </Button>
+            </div>
+          </footer>
+        )}
+      </Panel>
     </div>
   );
 }
 
-function Kpi({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+const PAGE_SIZE = 10;
+
+const chartTooltip = {
+  background: "var(--color-popover)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 8,
+  boxShadow: "var(--elev-md)",
+  color: "var(--color-foreground)",
+  fontSize: 12,
+  padding: "8px 10px",
+};
+
+const sessionStatusMeta: Record<string, { label: string; className: string }> = {
+  active: { label: "Em andamento", className: "bg-status-busy/12 text-status-busy border-status-busy/25" },
+  completed: { label: "Concluída", className: "bg-muted text-muted-foreground border-border" },
+  cancelled: {
+    label: "Cancelada",
+    className: "bg-destructive/10 text-destructive border-destructive/25",
+  },
+};
+
+function SessionBadge({ status }: { status: string }) {
+  const meta = sessionStatusMeta[status] ?? sessionStatusMeta["completed"]!;
   return (
-    <div className={`rounded-2xl border p-4 ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-display text-xl font-bold">{value}</p>
+    <span
+      className={`inline-flex rounded-[5px] border px-1.5 text-xs font-medium leading-5 ${meta.className}`}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+function FilterField({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
+        {label}
+      </Label>
+      {children}
     </div>
   );
 }

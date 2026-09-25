@@ -1,13 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Activity, BatteryCharging, Clock, Gauge, Users, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Metric, MetricStrip } from "@/components/Metric";
+import { Panel } from "@/components/Panel";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BRL, num } from "@/lib/axis";
+import { BRL, fmt, num } from "@/lib/axis";
 
 export const Route = createFileRoute("/_authenticated/session/$id")({
   head: () => ({
@@ -114,69 +118,69 @@ function LiveSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [energy >= target]);
 
-  if (!session) return <p className="text-sm text-muted-foreground">Carregando sessão...</p>;
+  if (!session) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4" aria-busy="true">
+        <Skeleton className="h-8 w-1/2" />
+        <Skeleton className="h-56 rounded-lg" />
+        <Skeleton className="h-20 rounded-lg" />
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{charger?.name}</h1>
-          <p className="text-sm text-muted-foreground">Sessão {active ? "ao vivo" : "finalizada"}</p>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{active ? "Recarga em andamento" : "Recarga finalizada"}</p>
+          <h1 className="truncate text-[1.5rem] leading-tight sm:text-[1.75rem]">{charger?.name}</h1>
         </div>
-        <Badge
-          variant="outline"
-          className={active ? "border-success/30 bg-success/15 text-success" : "text-muted-foreground"}
-        >
-          <Activity className="mr-1 size-3" /> {active ? "Carregando" : "Concluída"}
-        </Badge>
+        {active ? (
+          <StatusBadge status="occupied" />
+        ) : (
+          <Badge variant="secondary">Concluída</Badge>
+        )}
       </div>
 
-      <div className="rounded-3xl border border-border bg-card p-6 axis-glow">
-        <div className="flex items-end justify-between">
+      <Panel className="overflow-hidden">
+        <div className="grid gap-6 p-5 sm:grid-cols-[1fr_auto] sm:items-end sm:p-6">
           <div>
-            <p className="text-sm text-muted-foreground">Energia acumulada</p>
-            <p className="font-display text-5xl font-bold text-primary">{energy.toFixed(2)} kWh</p>
+            <p className="text-sm text-muted-foreground">Energia entregue</p>
+            <p className="mt-1 flex items-baseline gap-2 figures" aria-live="polite">
+              <span className="display-wide text-[3.25rem] font-semibold leading-none sm:text-[4rem]">
+                {fmt(energy, 2)}
+              </span>
+              <span className="text-lg font-medium text-muted-foreground">kWh</span>
+            </p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Custo</p>
-            <p className="font-display text-2xl font-bold">{BRL(cost)}</p>
+          <div className="sm:text-right">
+            <p className="text-sm text-muted-foreground">Valor até agora</p>
+            <p className="mt-1 text-[1.75rem] font-semibold leading-none figures [font-stretch:108%]">
+              {BRL(cost)}
+            </p>
           </div>
         </div>
-        <Progress value={percent} className="mt-5" />
-        <p className="mt-2 text-xs text-muted-foreground">
-          {percent.toFixed(0)}% da meta de {target} kWh
-        </p>
-      </div>
+        <div className="border-t border-border bg-muted/40 px-5 py-3 sm:px-6">
+          <div className="flex items-center justify-between text-xs text-muted-foreground figures">
+            <span>{fmt(percent, 0)}% da meta</span>
+            <span>Meta de {target} kWh</span>
+          </div>
+          <Progress value={percent} className="mt-2 h-2" aria-label="Progresso da recarga" />
+        </div>
+      </Panel>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          { icon: Gauge, label: "Potência", value: `${powerKw.toFixed(1)} kW` },
-          { icon: Clock, label: "Tempo restante", value: active ? `${remainingMin} min` : "—" },
-          { icon: BatteryCharging, label: "Bateria", value: `${battery}%` },
-          { icon: Users, label: "Fila", value: `${queue.length}` },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-border bg-card p-4">
-            <s.icon className="size-4 text-primary" />
-            <p className="mt-2 text-xs text-muted-foreground">{s.label}</p>
-            <p className="text-lg font-semibold">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-muted-foreground">Tempo decorrido</p>
-          <p className="text-lg font-semibold">{Math.round(elapsedMin)} min</p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-muted-foreground">Consumo por minuto</p>
-          <p className="text-lg font-semibold">{(powerKw / 60).toFixed(3)} kWh/min</p>
-        </div>
-      </div>
+      <MetricStrip className="sm:grid-cols-3 lg:grid-cols-6">
+        <Metric label="Potência" value={fmt(powerKw, 1)} unit="kW" />
+        <Metric label="Tempo restante" value={active ? remainingMin : "—"} unit={active ? "min" : undefined} />
+        <Metric label="Bateria" value={battery} unit="%" />
+        <Metric label="Tempo decorrido" value={Math.round(elapsedMin)} unit="min" />
+        <Metric label="Energia por minuto" value={fmt(powerKw / 60, 3)} unit="kWh/min" />
+        <Metric label="Fila" value={queue.length} unit={queue.length === 1 ? "pessoa" : "pessoas"} />
+      </MetricStrip>
 
       {active ? (
         <Button className="w-full" size="lg" onClick={finish}>
-          <Zap className="mr-2 size-4" /> Finalizar recarga
+          <Zap /> Finalizar recarga
         </Button>
       ) : (
         <Button asChild className="w-full" size="lg" variant="outline">

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { PageHeader } from "@/components/AppShell";
+import { Panel, PanelHeader } from "@/components/Panel";
 import { useTheme } from "@/lib/theme";
 import { uploadImage } from "@/lib/axis";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,88 +90,115 @@ function ProfilePage() {
   const isMerchant = form.account_type === "merchant";
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <PageHeader title="Meu perfil" subtitle="Personalize sua conta AXIS" />
+    <div className="mx-auto max-w-2xl space-y-4">
+      <PageHeader title="Meu perfil" subtitle="Dados da conta e preferências" />
 
-      <div className="space-y-5 rounded-3xl border border-border bg-card p-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Avatar className="size-20 border border-border">
-              <AvatarImage src={form.avatar_url || undefined} alt="" />
-              <AvatarFallback className="bg-primary/10 text-primary">
-                {(form.display_name || "AX").slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-1 -right-1 grid size-8 place-items-center rounded-full bg-primary text-primary-foreground"
-              aria-label="Alterar foto"
-            >
-              {uploading ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(e) => onPickAvatar(e.target.files?.[0])}
+      <Panel>
+        <PanelHeader title="Dados da conta" />
+        <div className="space-y-4 p-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Avatar className="size-16 border border-border">
+                <AvatarImage src={form.avatar_url || undefined} alt="" />
+                <AvatarFallback className="bg-muted text-sm font-semibold text-foreground">
+                  {(form.display_name || "AX").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-full border-2 border-card bg-foreground text-background transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:hover:scale-100"
+                aria-label="Alterar foto"
+              >
+                {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => onPickAvatar(e.target.files?.[0])}
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold">{form.display_name || "Sem nome"}</p>
+              <p className="text-sm text-muted-foreground">
+                {isMerchant ? "Conta de comerciante" : "Conta de motorista"}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-[0.8125rem] font-medium">
+                Nome
+              </Label>
+              <Input
+                id="name"
+                value={form.display_name}
+                onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="phone" className="text-[0.8125rem] font-medium">
+                Telefone
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </div>
+          </div>
+          {isMerchant && (
+            <div className="space-y-1.5">
+              <Label htmlFor="company" className="text-[0.8125rem] font-medium">
+                Nome do comércio
+              </Label>
+              <Input
+                id="company"
+                value={form.company_name}
+                onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+              />
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="bio" className="text-[0.8125rem] font-medium">
+              Sobre
+            </Label>
+            <Textarea id="bio" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
+          </div>
+        </div>
+      </Panel>
+
+      <Panel>
+        <PanelHeader title="Preferências" />
+        <div className="divide-y divide-border">
+          <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+            <span>
+              <span className="block text-sm font-medium">Tema escuro</span>
+              <span className="block text-xs text-muted-foreground">Fundo escuro em todas as telas</span>
+            </span>
+            <Switch checked={theme === "dark"} onCheckedChange={(v) => setTheme(v ? "dark" : "light")} />
+          </label>
+          <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+            <span>
+              <span className="block text-sm font-medium">Modo comerciante</span>
+              <span className="block text-xs text-muted-foreground">
+                Painel, carregadores e relatórios para quem oferece recarga
+              </span>
+            </span>
+            <Switch
+              checked={isMerchant}
+              onCheckedChange={(v) => setForm({ ...form, account_type: v ? "merchant" : "driver" })}
             />
-          </div>
-          <div>
-            <p className="font-semibold">{form.display_name || "Sem nome"}</p>
-            <p className="text-sm text-muted-foreground">
-              {isMerchant ? "Conta de comerciante" : "Conta de motorista"}
-            </p>
-          </div>
+          </label>
         </div>
+      </Panel>
 
-        <div className="space-y-2">
-          <Label htmlFor="name">Nome</Label>
-          <Input
-            id="name"
-            value={form.display_name}
-            onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="phone">Telefone</Label>
-          <Input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        </div>
-        {isMerchant && (
-          <div className="space-y-2">
-            <Label htmlFor="company">Nome do comércio</Label>
-            <Input
-              id="company"
-              value={form.company_name}
-              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-            />
-          </div>
-        )}
-        <div className="space-y-2">
-          <Label htmlFor="bio">Sobre</Label>
-          <Textarea id="bio" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-        </div>
-
-        <div className="flex items-center justify-between rounded-2xl border border-border p-4">
-          <div>
-            <p className="font-medium">Tema escuro</p>
-            <p className="text-sm text-muted-foreground">Alterne entre fundo preto e branco</p>
-          </div>
-          <Switch checked={theme === "dark"} onCheckedChange={(v) => setTheme(v ? "dark" : "light")} />
-        </div>
-
-        <div className="flex items-center justify-between rounded-2xl border border-border p-4">
-          <div>
-            <p className="font-medium">Modo comerciante</p>
-            <p className="text-sm text-muted-foreground">Acesse painel, carregadores e relatórios</p>
-          </div>
-          <Switch
-            checked={isMerchant}
-            onCheckedChange={(v) => setForm({ ...form, account_type: v ? "merchant" : "driver" })}
-          />
-        </div>
-
-        <Button className="w-full" onClick={() => save.mutate()} disabled={save.isPending}>
+      <div className="flex justify-end">
+        <Button onClick={() => save.mutate()} disabled={save.isPending} className="w-full sm:w-auto">
+          {save.isPending && <Loader2 className="animate-spin" />}
           Salvar alterações
         </Button>
       </div>

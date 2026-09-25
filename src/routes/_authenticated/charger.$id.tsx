@@ -1,24 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  Clock,
-  ExternalLink,
-  MapPin,
-  Navigation,
-  Plug,
-  Star,
-  Users,
-  Zap,
-} from "lucide-react";
+import { ArrowLeft, ExternalLink, MapPin, Star, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { MapCanvas } from "@/components/MapCanvas";
 import { ChargerImage } from "@/components/ChargerImage";
+import { Metric, MetricStrip } from "@/components/Metric";
+import { Panel, PanelHeader } from "@/components/Panel";
+import { StatusBadge } from "@/components/StatusBadge";
 import { chargerCover } from "@/constants/chargerImages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -26,12 +21,12 @@ import {
   chargeMinutes,
   distanceKm,
   driveMinutes,
+  fmt,
   formatKm,
   num,
   SAO_PAULO,
-  statusLabel,
-  statusTone,
 } from "@/lib/axis";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/charger/$id")({
   head: () => ({
@@ -148,7 +143,22 @@ function ChargerDetail() {
     },
   });
 
-  if (!charger) return <p className="text-sm text-muted-foreground">Carregando...</p>;
+  if (!charger) {
+    return (
+      <div className="space-y-4" aria-busy="true">
+        <Skeleton className="h-8 w-32" />
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+          <div className="space-y-4">
+            <Skeleton className="h-56 rounded-lg sm:h-72" />
+            <Skeleton className="h-7 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-20 rounded-lg" />
+          </div>
+          <Skeleton className="h-80 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
 
   const origin = pos ?? SAO_PAULO;
   const km = distanceKm(origin.lat, origin.lng, charger.latitude, charger.longitude);
@@ -161,33 +171,35 @@ function ChargerDetail() {
     : null;
 
   return (
-    <div className="space-y-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
+    <div className="space-y-4">
+      <Button asChild variant="ghost" size="sm" className="-ml-2.5">
         <Link to="/map">
-          <ArrowLeft className="mr-1 size-4" /> Voltar ao mapa
+          <ArrowLeft /> Mapa
         </Link>
       </Button>
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-border bg-muted">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
+          <div className="overflow-hidden rounded-lg border border-border bg-muted shadow-xs">
             <ChargerImage
               src={photos[photo] ?? chargerCover(photos, charger.id)}
               seed={charger.id}
               alt={charger.name}
-              className="h-52 w-full object-cover sm:h-72"
+              className="h-56 w-full object-cover sm:h-80"
             />
           </div>
           {photos.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {photos.map((p, i) => (
                 <button
                   key={p}
                   onClick={() => setPhoto(i)}
                   aria-label={`Ver foto ${i + 1}`}
-                  className={`size-16 shrink-0 overflow-hidden rounded-lg border-2 ${
-                    i === photo ? "border-primary" : "border-transparent"
-                  }`}
+                  aria-pressed={i === photo}
+                  className={cn(
+                    "size-14 shrink-0 overflow-hidden rounded-md border-2 transition-[border-color,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    i === photo ? "border-foreground" : "border-transparent opacity-70 hover:opacity-100",
+                  )}
                 >
                   <ChargerImage src={p} seed={charger.id} className="size-full object-cover" />
                 </button>
@@ -196,26 +208,34 @@ function ChargerDetail() {
           )}
 
           <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold">{charger.name}</h1>
-              <Badge variant="outline" className={statusTone[charger.status]}>
-                {statusLabel[charger.status]}
-              </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="mr-1 text-[1.5rem] leading-tight sm:text-[1.75rem]">{charger.name}</h1>
+              <StatusBadge status={charger.status} />
               <Badge variant="secondary">{charger.model}</Badge>
-              {avg && (
-                <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                  <Star className="size-4 fill-primary text-primary" /> {avg.toFixed(1)} ({reviews.length})
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="size-4" /> {charger.address}
+              </span>
+              {avg !== null && (
+                <span className="inline-flex items-center gap-1 figures">
+                  <Star className="size-4 fill-warning text-warning" />
+                  <span className="font-medium text-foreground">{fmt(avg, 1)}</span>
+                  <span>
+                    ({reviews.length} {reviews.length === 1 ? "avaliação" : "avaliações"})
+                  </span>
                 </span>
               )}
             </div>
-            <p className="mt-1 inline-flex items-center gap-1 text-sm text-muted-foreground">
-              <MapPin className="size-4" /> {charger.address}
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{charger.description}</p>
+            {charger.description && (
+              <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted-foreground">
+                {charger.description}
+              </p>
+            )}
             {charger.amenities?.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-1.5">
                 {charger.amenities.map((a: string) => (
-                  <Badge key={a} variant="secondary">
+                  <Badge key={a} variant="outline">
                     {a}
                   </Badge>
                 ))}
@@ -223,129 +243,168 @@ function ChargerDetail() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { label: "Preço", value: `${BRL(num(charger.price_per_kwh))}/kWh`, icon: Zap },
-              { label: "Potência", value: `${num(charger.power_kw)} kW`, icon: Plug },
-              { label: "Distância", value: formatKm(km), icon: Navigation },
-              { label: "Chegada", value: `${eta} min`, icon: Clock },
-            ].map((s) => (
-              <div key={s.label} className="rounded-xl border border-border bg-card p-3">
-                <s.icon className="size-4 text-primary" />
-                <p className="mt-2 text-xs text-muted-foreground">{s.label}</p>
-                <p className="font-semibold">{s.value}</p>
-              </div>
-            ))}
-          </div>
+          <MetricStrip className="sm:grid-cols-4">
+            <Metric label="Preço" value={BRL(num(charger.price_per_kwh))} unit="/kWh" />
+            <Metric label="Potência" value={num(charger.power_kw)} unit="kW" />
+            <Metric label="Distância" value={formatKm(km)} />
+            <Metric label="Chegada" value={eta} unit="min" />
+          </MetricStrip>
 
-          <div className="h-64 overflow-hidden rounded-2xl border border-border">
-            <MapCanvas
-              chargers={[charger as never]}
-              center={{ lat: charger.latitude, lng: charger.longitude }}
-              userPosition={pos}
-              routeTo={{ lat: charger.latitude, lng: charger.longitude }}
+          <Panel className="overflow-hidden">
+            <PanelHeader
+              title="Como chegar"
+              description={charger.connector_type ? `Conector ${charger.connector_type}` : undefined}
+              actions={
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${charger.latitude},${charger.longitude}&travelmode=driving`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Abrir no Google Maps <ExternalLink />
+                  </a>
+                </Button>
+              }
             />
-          </div>
-          <Button variant="outline" asChild className="w-full">
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${charger.latitude},${charger.longitude}&travelmode=driving`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Abrir rota no Google Maps <ExternalLink className="ml-2 size-4" />
-            </a>
-          </Button>
+            <div className="h-64">
+              <MapCanvas
+                chargers={[charger as never]}
+                center={{ lat: charger.latitude, lng: charger.longitude }}
+                userPosition={pos}
+                routeTo={{ lat: charger.latitude, lng: charger.longitude }}
+              />
+            </div>
+          </Panel>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-semibold">Simular recarga</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Escolha quanta energia você quer carregar.</p>
-            <div className="mt-5">
+        <div className="space-y-4 lg:sticky lg:top-[calc(var(--app-header-h)+1.5rem)] lg:self-start">
+          <Panel>
+            <PanelHeader title="Simular recarga" description="Escolha quanta energia quer carregar" />
+            <div className="p-4">
               <div className="flex items-baseline justify-between">
-                <span className="text-sm text-muted-foreground">Energia</span>
-                <span className="font-display text-2xl font-bold text-primary">{target} kWh</span>
+                <Label htmlFor="energy-target" className="text-sm text-muted-foreground">
+                  Energia
+                </Label>
+                <span className="display-wide text-[1.75rem] font-semibold leading-none figures">
+                  {target}
+                  <span className="ml-1 text-sm font-medium text-muted-foreground [font-stretch:100%]">
+                    kWh
+                  </span>
+                </span>
               </div>
               <Slider
-                className="mt-3"
+                id="energy-target"
+                className="mt-4"
                 value={[target]}
                 min={5}
                 max={80}
                 step={5}
                 onValueChange={(v) => setTarget(v[0] ?? 30)}
+                aria-label="Energia desejada em kWh"
               />
-            </div>
-            <dl className="mt-5 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Tempo estimado</dt>
-                <dd className="font-semibold">
-                  {Math.floor(minutes / 60)}h {minutes % 60}min
-                </dd>
+              <div className="mt-1.5 flex justify-between text-xs text-muted-foreground figures">
+                <span>5 kWh</span>
+                <span>80 kWh</span>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Custo estimado</dt>
-                <dd className="font-semibold text-primary">{BRL(cost)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Fila agora</dt>
-                <dd className="inline-flex items-center gap-1 font-semibold">
-                  <Users className="size-4" /> {queue.length}
-                </dd>
-              </div>
-            </dl>
-            {charger.status === "available" ? (
-              <Button
-                className="mt-5 w-full"
-                onClick={() => startSession.mutate()}
-                disabled={startSession.isPending}
-              >
-                Iniciar recarga
-              </Button>
-            ) : (
-              <Button
-                className="mt-5 w-full"
-                variant="outline"
-                onClick={() => joinQueue.mutate()}
-                disabled={joinQueue.isPending}
-              >
-                Entrar na fila
-              </Button>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-semibold">Avaliações</h2>
-            <div className="mt-3 flex gap-1">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} onClick={() => setRating(n)} aria-label={`${n} estrelas`}>
-                  <Star
-                    className={`size-5 ${n <= rating ? "fill-primary text-primary" : "text-muted-foreground"}`}
-                  />
-                </button>
-              ))}
-            </div>
-            <Textarea
-              className="mt-3"
-              placeholder="Como foi sua experiência?"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-            <Button className="mt-3 w-full" variant="secondary" onClick={() => sendReview.mutate()}>
-              Enviar avaliação
-            </Button>
-            <div className="mt-4 space-y-3">
-              {reviews.map((r) => (
-                <div key={r.id} className="rounded-xl border border-border p-3 text-sm">
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: num(r.rating) }).map((_, i) => (
-                      <Star key={i} className="size-3.5 fill-primary text-primary" />
-                    ))}
-                  </div>
-                  <p className="mt-1 text-muted-foreground">{r.comment}</p>
+              <dl className="mt-4 divide-y divide-border rounded-md border border-border text-sm figures">
+                <div className="flex items-center justify-between px-3 py-2">
+                  <dt className="text-muted-foreground">Tempo estimado</dt>
+                  <dd className="font-medium">
+                    {Math.floor(minutes / 60)}h {String(minutes % 60).padStart(2, "0")}min
+                  </dd>
                 </div>
-              ))}
+                <div className="flex items-center justify-between px-3 py-2">
+                  <dt className="text-muted-foreground">Custo estimado</dt>
+                  <dd className="text-base font-semibold">{BRL(cost)}</dd>
+                </div>
+                <div className="flex items-center justify-between px-3 py-2">
+                  <dt className="text-muted-foreground">Fila agora</dt>
+                  <dd className="inline-flex items-center gap-1.5 font-medium">
+                    <Users className="size-4 text-muted-foreground" /> {queue.length}
+                  </dd>
+                </div>
+              </dl>
+              {charger.status === "available" ? (
+                <Button
+                  className="mt-4 w-full"
+                  size="lg"
+                  onClick={() => startSession.mutate()}
+                  disabled={startSession.isPending}
+                >
+                  <Zap /> {startSession.isPending ? "Iniciando..." : "Iniciar recarga"}
+                </Button>
+              ) : (
+                <Button
+                  className="mt-4 w-full"
+                  size="lg"
+                  variant="outline"
+                  onClick={() => joinQueue.mutate()}
+                  disabled={joinQueue.isPending}
+                >
+                  <Users /> Entrar na fila
+                </Button>
+              )}
             </div>
-          </div>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Avaliações" description={reviews.length ? undefined : "Seja o primeiro a avaliar"} />
+            <div className="space-y-3 p-4">
+              <div className="flex gap-0.5" role="radiogroup" aria-label="Sua nota">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    role="radio"
+                    aria-checked={n === rating}
+                    onClick={() => setRating(n)}
+                    aria-label={`${n} ${n === 1 ? "estrela" : "estrelas"}`}
+                    className="rounded p-0.5 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:hover:scale-100"
+                  >
+                    <Star
+                      className={cn(
+                        "size-5",
+                        n <= rating ? "fill-warning text-warning" : "text-muted-foreground/60",
+                      )}
+                    />
+                  </button>
+                ))}
+              </div>
+              <Textarea
+                placeholder="Como foi sua experiência?"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                aria-label="Comentário"
+              />
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => sendReview.mutate()}
+                disabled={sendReview.isPending}
+              >
+                Enviar avaliação
+              </Button>
+            </div>
+            {reviews.length > 0 && (
+              <ul className="divide-y divide-border border-t border-border">
+                {reviews.map((r) => (
+                  <li key={r.id} className="px-4 py-3 text-sm">
+                    <div className="flex gap-0.5" aria-label={`${num(r.rating)} de 5`}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={cn(
+                            "size-3.5",
+                            i < num(r.rating) ? "fill-warning text-warning" : "text-muted-foreground/40",
+                          )}
+                        />
+                      ))}
+                    </div>
+                    {r.comment && <p className="mt-1 text-muted-foreground">{r.comment}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
         </div>
       </div>
     </div>

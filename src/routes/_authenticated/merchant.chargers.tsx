@@ -1,23 +1,36 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Check, ImagePlus, Loader2, MapPin, Pencil, Plus, Power, Trash2 } from "lucide-react";
+import { Check, ImagePlus, Loader2, MapPin, Pencil, Plug, Plus, Power, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppShell";
 import { useMerchantData } from "@/hooks/useMerchantData";
-import { BRL, num, statusLabel, statusTone, uploadImage } from "@/lib/axis";
+import { BRL, fmt, num, uploadImage } from "@/lib/axis";
+import { cn } from "@/lib/utils";
+import { EmptyState, Panel } from "@/components/Panel";
+import { StatusBadge } from "@/components/StatusBadge";
 import { ChargerImage } from "@/components/ChargerImage";
 import {
   chargerCover,
   chargerImages,
   randomChargerImage,
 } from "@/constants/chargerImages";
-import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -82,6 +95,7 @@ function MerchantChargers() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(empty);
   const [uploading, setUploading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = () => qc.invalidateQueries();
@@ -205,122 +219,148 @@ function MerchantChargers() {
   return (
     <div>
       <PageHeader
-        title="Meus carregadores"
-        subtitle="Cadastre, edite preço, fotos e disponibilidade"
+        title="Carregadores"
+        subtitle="Preço, fotos e disponibilidade de cada ponto de recarga"
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => setForm(empty)}>
-                <Plus className="mr-2 size-4" /> Novo carregador
+              <Button onClick={() => setForm(empty)} size="sm">
+                <Plus /> Novo carregador
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-              <DialogHeader>
+            <DialogContent className="max-h-[90dvh] gap-0 overflow-y-auto p-0 sm:max-w-lg">
+              <DialogHeader className="border-b border-border px-5 py-4">
                 <DialogTitle>{form.id ? "Editar carregador" : "Novo carregador HCA G2"}</DialogTitle>
+                <DialogDescription>
+                  {form.id
+                    ? "As mudanças aparecem para os motoristas assim que você salvar."
+                    : "Os motoristas veem o carregador no mapa assim que você salvar."}
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <Field label="Nome">
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                </Field>
-                <Field label="Descrição">
-                  <Textarea
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  />
-                </Field>
-                <Field label="Endereço">
-                  <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Latitude">
+              <div className="space-y-5 px-5 py-5">
+                <FormSection title="Identificação">
+                  <Field label="Nome">
                     <Input
-                      value={form.latitude}
-                      onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="Ex.: Padaria Central — vaga 2"
                     />
                   </Field>
-                  <Field label="Longitude">
-                    <Input
-                      value={form.longitude}
-                      onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                  <Field label="Descrição">
+                    <Textarea
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
                     />
                   </Field>
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
-                  <MapPin className="mr-2 size-4" /> Usar minha localização
-                </Button>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <Field label="R$/kWh">
+                </FormSection>
+
+                <FormSection title="Localização">
+                  <Field label="Endereço">
                     <Input
-                      value={form.price_per_kwh}
-                      onChange={(e) => setForm({ ...form, price_per_kwh: e.target.value })}
+                      value={form.address}
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
                     />
                   </Field>
-                  <Field label="R$/min">
-                    <Input
-                      value={form.price_per_minute}
-                      onChange={(e) => setForm({ ...form, price_per_minute: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Potência (kW)">
-                    <Input
-                      value={form.power_kw}
-                      onChange={(e) => setForm({ ...form, power_kw: e.target.value })}
-                    />
-                  </Field>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Conector">
-                    <Input
-                      value={form.connector_type}
-                      onChange={(e) => setForm({ ...form, connector_type: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Horário">
-                    <Input
-                      value={form.opening_hours}
-                      onChange={(e) => setForm({ ...form, opening_hours: e.target.value })}
-                    />
-                  </Field>
-                </div>
-                <Field label="Status">
-                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="available">Disponível</SelectItem>
-                      <SelectItem value="occupied">Ocupado</SelectItem>
-                      <SelectItem value="maintenance">Manutenção</SelectItem>
-                      <SelectItem value="offline">Offline</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Comodidades (separadas por vírgula)">
-                  <Input
-                    value={form.amenities}
-                    onChange={(e) => setForm({ ...form, amenities: e.target.value })}
-                    placeholder="Café, Wi-Fi, Banheiro"
-                  />
-                </Field>
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm">Fotos</Label>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Envie uma foto do seu carregador ou escolha uma imagem padrão. Se salvar sem
-                      imagem, usamos uma imagem padrão aleatória.
-                    </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Latitude">
+                      <Input
+                        inputMode="decimal"
+                        value={form.latitude}
+                        onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Longitude">
+                      <Input
+                        inputMode="decimal"
+                        value={form.longitude}
+                        onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                      />
+                    </Field>
                   </div>
+                  <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
+                    <MapPin /> Usar minha localização
+                  </Button>
+                </FormSection>
+
+                <FormSection title="Preço e funcionamento">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="R$ por kWh">
+                      <Input
+                        inputMode="decimal"
+                        value={form.price_per_kwh}
+                        onChange={(e) => setForm({ ...form, price_per_kwh: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="R$ por minuto">
+                      <Input
+                        inputMode="decimal"
+                        value={form.price_per_minute}
+                        onChange={(e) => setForm({ ...form, price_per_minute: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Potência (kW)">
+                      <Input
+                        inputMode="decimal"
+                        value={form.power_kw}
+                        onChange={(e) => setForm({ ...form, power_kw: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Conector">
+                      <Input
+                        value={form.connector_type}
+                        onChange={(e) => setForm({ ...form, connector_type: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Horário">
+                      <Input
+                        value={form.opening_hours}
+                        onChange={(e) => setForm({ ...form, opening_hours: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Status">
+                    <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="available">Livre</SelectItem>
+                        <SelectItem value="occupied">Em uso</SelectItem>
+                        <SelectItem value="maintenance">Manutenção</SelectItem>
+                        <SelectItem value="offline">Indisponível</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Comodidades (separadas por vírgula)">
+                    <Input
+                      value={form.amenities}
+                      onChange={(e) => setForm({ ...form, amenities: e.target.value })}
+                      placeholder="Café, Wi-Fi, Banheiro"
+                    />
+                  </Field>
+                </FormSection>
+
+                <FormSection title="Fotos">
+                  <p className="-mt-1 text-xs text-muted-foreground">
+                    Envie uma foto do seu carregador ou escolha uma imagem padrão. Se salvar sem imagem,
+                    usamos uma imagem padrão aleatória.
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {form.photos.map((p) => (
-                      <div key={p} className="relative size-20 overflow-hidden rounded-lg border border-border">
+                      <div
+                        key={p}
+                        className="relative size-20 overflow-hidden rounded-md border border-border"
+                      >
                         <ChargerImage src={p} seed={form.id} className="size-full object-cover" />
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, photos: form.photos.filter((x) => x !== p) })}
-                          className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-destructive text-destructive-foreground"
+                          className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-foreground/80 text-background transition-colors hover:bg-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           aria-label="Remover foto"
                         >
-                          <Trash2 className="size-3" />
+                          <X className="size-3" />
                         </button>
                       </div>
                     ))}
@@ -328,9 +368,13 @@ function MerchantChargers() {
                       type="button"
                       onClick={() => fileRef.current?.click()}
                       disabled={uploading}
-                      className="flex size-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-[11px] text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                      className="flex size-20 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-input text-[0.6875rem] font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                     >
-                      {uploading ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
+                      {uploading ? (
+                        <Loader2 className="size-5 animate-spin" />
+                      ) : (
+                        <ImagePlus className="size-5" />
+                      )}
                       {uploading ? "Enviando" : "Enviar foto"}
                     </button>
                     <input
@@ -354,13 +398,16 @@ function MerchantChargers() {
                             aria-pressed={picked}
                             aria-label={img.label}
                             title={img.label}
-                            className={`relative aspect-[4/3] overflow-hidden rounded-lg border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                              picked ? "border-primary" : "border-transparent opacity-80 hover:opacity-100"
-                            }`}
+                            className={cn(
+                              "relative aspect-[4/3] overflow-hidden rounded-md border-2 transition-[border-color,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              picked
+                                ? "border-foreground"
+                                : "border-transparent opacity-75 hover:opacity-100",
+                            )}
                           >
                             <img src={img.src} alt="" className="size-full object-cover" />
                             {picked && (
-                              <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-primary text-primary-foreground">
+                              <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-foreground text-background">
                                 <Check className="size-3" />
                               </span>
                             )}
@@ -369,18 +416,30 @@ function MerchantChargers() {
                       })}
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-border p-3">
-                  <span className="text-sm">Visível para motoristas</span>
-                  <Switch
-                    checked={form.is_active}
-                    onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-                  />
-                </div>
+                </FormSection>
+
+                <FormSection title="Visibilidade">
+                  <label className="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-border px-3 py-2.5">
+                    <span>
+                      <span className="block text-sm font-medium">Mostrar no mapa</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Desligue para esconder dos motoristas sem apagar o carregador.
+                      </span>
+                    </span>
+                    <Switch
+                      checked={form.is_active}
+                      onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+                    />
+                  </label>
+                </FormSection>
               </div>
-              <DialogFooter>
+              <DialogFooter className="sticky bottom-0 gap-2 border-t border-border bg-card px-5 py-3">
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
                 <Button onClick={() => save.mutate()} disabled={save.isPending || !form.name}>
-                  Salvar
+                  {save.isPending && <Loader2 className="animate-spin" />}
+                  {form.id ? "Salvar alterações" : "Cadastrar carregador"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -388,55 +447,107 @@ function MerchantChargers() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {chargers.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhum carregador cadastrado ainda.</p>
-        )}
-        {chargers.map((c) => {
-          const cs = sessions.filter((s) => s.charger_id === c.id);
-          const revenue = cs.reduce((a, b) => a + num(b.cost), 0);
-          const energy = cs.reduce((a, b) => a + num(b.energy_kwh), 0);
-          return (
-            <div key={c.id} className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="h-36 bg-muted">
-                <ChargerImage
-                  src={chargerCover(c.photos, c.id)}
-                  seed={c.id}
-                  alt={c.name}
-                  className="size-full object-cover"
-                />
-              </div>
-              <div className="space-y-3 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-semibold">{c.name}</h3>
-                    <p className="text-xs text-muted-foreground">{c.address}</p>
+      {chargers.length === 0 ? (
+        <Panel>
+          <EmptyState
+            icon={<Plug />}
+            title="Nenhum carregador cadastrado"
+            description="Cadastre seu primeiro carregador para aparecer no mapa dos motoristas."
+            action={
+              <Button
+                onClick={() => {
+                  setForm(empty);
+                  setOpen(true);
+                }}
+              >
+                <Plus /> Novo carregador
+              </Button>
+            }
+          />
+        </Panel>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {chargers.map((c) => {
+            const cs = sessions.filter((s) => s.charger_id === c.id);
+            const revenue = cs.reduce((a, b) => a + num(b.cost), 0);
+            const energy = cs.reduce((a, b) => a + num(b.energy_kwh), 0);
+            return (
+              <article
+                key={c.id}
+                className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xs transition-shadow duration-200 hover:shadow-sm"
+              >
+                <div className="relative h-32 bg-muted">
+                  <ChargerImage
+                    src={chargerCover(c.photos, c.id)}
+                    seed={c.id}
+                    alt={c.name}
+                    className="size-full object-cover"
+                  />
+                  <StatusBadge
+                    status={c.status}
+                    className="absolute left-2 top-2 bg-card/95 shadow-xs backdrop-blur"
+                  />
+                  {!c.is_active && (
+                    <span className="absolute right-2 top-2 rounded-[5px] bg-foreground/80 px-1.5 text-xs font-medium leading-5 text-background">
+                      Oculto do mapa
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col p-4">
+                  <h3 className="truncate text-[0.9375rem]">{c.name}</h3>
+                  <p className="truncate text-xs text-muted-foreground">{c.address}</p>
+                  <dl className="mt-3 grid grid-cols-3 divide-x divide-border rounded-md border border-border text-xs figures">
+                    <Mini label="Preço/kWh" value={BRL(num(c.price_per_kwh))} />
+                    <Mini label="Energia" value={`${fmt(energy, 1)} kWh`} />
+                    <Mini label="Receita" value={BRL(revenue)} />
+                  </dl>
+                  <div className="mt-3 flex items-center gap-1 border-t border-border pt-3">
+                    <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
+                      <Pencil /> Editar
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => toggleStatus(c.id, c.status)}>
+                      <Power /> {c.status === "offline" ? "Ativar" : "Desativar"}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="ml-auto size-8 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setConfirmDelete({ id: c.id, name: c.name })}
+                      aria-label={`Excluir ${c.name}`}
+                    >
+                      <Trash2 />
+                    </Button>
                   </div>
-                  <Badge variant="outline" className={statusTone[c.status]}>
-                    {statusLabel[c.status]}
-                  </Badge>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <Mini label="Preço" value={`${BRL(num(c.price_per_kwh))}`} />
-                  <Mini label="Energia" value={`${energy.toFixed(1)} kWh`} />
-                  <Mini label="Receita" value={BRL(revenue)} />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
-                    <Pencil className="mr-1 size-3.5" /> Editar
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => toggleStatus(c.id, c.status)}>
-                    <Power className="mr-1 size-3.5" /> {c.status === "offline" ? "Ativar" : "Desativar"}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove.mutate(c.id)}>
-                    <Trash2 className="mr-1 size-3.5" /> Excluir
-                  </Button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir “{confirmDelete?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O carregador sai do mapa e do seu painel. Essa ação não pode ser desfeita. Se quiser só
+              tirá-lo do ar por um tempo, use “Desativar”.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDelete) remove.mutate(confirmDelete.id);
+                setConfirmDelete(null);
+              }}
+            >
+              Excluir carregador
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -444,17 +555,26 @@ function MerchantChargers() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm">{label}</Label>
+      <Label className="text-[0.8125rem] font-medium">{label}</Label>
       {children}
     </div>
   );
 }
 
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="space-y-3 border-t border-border pt-4 first:border-t-0 first:pt-0">
+      <legend className="float-left mb-1 w-full text-sm font-semibold">{title}</legend>
+      {children}
+    </fieldset>
+  );
+}
+
 function Mini({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border p-2">
-      <p className="text-[10px] text-muted-foreground">{label}</p>
-      <p className="font-semibold">{value}</p>
+    <div className="min-w-0 px-2.5 py-2">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="truncate font-semibold text-foreground">{value}</dd>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -9,12 +9,18 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, BatteryCharging, Plug, TrendingUp, Zap } from "lucide-react";
+import { BatteryCharging, FileBarChart, Plug, Plus } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { useMerchantData } from "@/hooks/useMerchantData";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState, Panel, PanelHeader } from "@/components/Panel";
+import { Metric, MetricStrip } from "@/components/Metric";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { BRL, num, statusLabel, statusTone } from "@/lib/axis";
+import { BRL, fmt, num } from "@/lib/axis";
+import { statusRail } from "@/lib/status";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/merchant/")({
   head: () => ({
@@ -33,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/merchant/")({
 
 function MerchantDashboard() {
   const { chargers, sessions, loading } = useMerchantData();
+  const [chartMetric, setChartMetric] = useState<"receita" | "energia">("receita");
 
   const stats = useMemo(() => {
     const revenue = sessions.reduce((s, x) => s + num(x.cost), 0);
@@ -65,156 +72,230 @@ function MerchantDashboard() {
     return days;
   }, [sessions]);
 
-  if (loading) return <p className="text-sm text-muted-foreground">Carregando painel...</p>;
-
-  if (chargers.length === 0) {
-    return (
-      <div>
-        <PageHeader title="Painel do comerciante" subtitle="Comece cadastrando seu primeiro carregador HCA G2" />
-        <div className="rounded-3xl border border-dashed border-border p-10 text-center">
-          <Plug className="mx-auto size-8 text-primary" />
-          <h2 className="mt-4 font-semibold">Nenhum carregador cadastrado</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Cadastre um carregador para acompanhar consumo, energia e lucro.
-          </p>
-          <Button asChild className="mt-5">
-            <Link to="/merchant/chargers">Cadastrar carregador</Link>
+  const header = (
+    <PageHeader
+      title="Painel"
+      subtitle="Energia vendida, receita e recargas dos seus carregadores"
+      action={
+        chargers.length > 0 && (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/merchant/reports">
+              <FileBarChart /> Relatórios
+            </Link>
           </Button>
-        </div>
+        )
+      }
+    />
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {header}
+        <MetricStrip>
+          {["Receita acumulada", "Energia vendida", "Energia por minuto", "Ticket médio"].map((l) => (
+            <Metric key={l} label={l} value="" loading />
+          ))}
+        </MetricStrip>
+        <Skeleton className="h-80 rounded-lg" />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Painel do comerciante"
-        subtitle="Consumo, energia e lucro dos seus carregadores"
-        action={
-          <Button asChild variant="outline">
-            <Link to="/merchant/reports">Ver relatórios</Link>
-          </Button>
-        }
-      />
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi icon={TrendingUp} label="Lucro acumulado" value={BRL(stats.revenue)} accent />
-        <Kpi icon={Zap} label="Energia vendida" value={`${stats.energy.toFixed(1)} kWh`} />
-        <Kpi icon={BatteryCharging} label="Consumo por minuto" value={`${stats.perMinute.toFixed(3)} kWh/min`} />
-        <Kpi icon={Activity} label="Ticket médio" value={BRL(stats.ticket)} />
+  if (chargers.length === 0) {
+    return (
+      <div>
+        {header}
+        <Panel>
+          <EmptyState
+            icon={<Plug />}
+            title="Nenhum carregador cadastrado"
+            description="Cadastre seu primeiro carregador para acompanhar energia vendida, recargas e receita."
+            action={
+              <Button asChild>
+                <Link to="/merchant/chargers">
+                  <Plus /> Cadastrar carregador
+                </Link>
+              </Button>
+            }
+          />
+        </Panel>
       </div>
+    );
+  }
 
-      <div className="rounded-3xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Receita dos últimos 14 dias</h2>
-        <div className="mt-4 h-64">
+  const series = chartMetric === "receita" ? "var(--color-chart-2)" : "var(--color-chart-1)";
+
+  return (
+    <div className="space-y-4">
+      {header}
+
+      <MetricStrip>
+        <Metric label="Receita acumulada" value={BRL(stats.revenue)} emphasis />
+        <Metric label="Energia vendida" value={fmt(stats.energy, 1)} unit="kWh" />
+        <Metric label="Energia por minuto" value={fmt(stats.perMinute, 3)} unit="kWh/min" />
+        <Metric
+          label="Ticket médio"
+          value={BRL(stats.ticket)}
+          hint={`${sessions.length} ${sessions.length === 1 ? "recarga" : "recargas"}`}
+        />
+      </MetricStrip>
+
+      <Panel>
+        <PanelHeader
+          title="Últimos 14 dias"
+          description={chartMetric === "receita" ? "Receita por dia" : "Energia vendida por dia"}
+          actions={
+            <Tabs value={chartMetric} onValueChange={(v) => setChartMetric(v as "receita" | "energia")}>
+              <TabsList className="h-8">
+                <TabsTrigger value="receita" className="h-7 text-xs">
+                  Receita
+                </TabsTrigger>
+                <TabsTrigger value="energia" className="h-7 text-xs">
+                  Energia
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          }
+        />
+        <div className="h-64 px-2 pb-2 pt-4 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chart}>
+            <AreaChart data={chart} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+                <linearGradient id="dash-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={series} stopOpacity={0.18} />
+                  <stop offset="100%" stopColor={series} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
+              <CartesianGrid stroke="var(--color-border)" vertical={false} />
+              <XAxis
+                dataKey="day"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={16}
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              />
+              <YAxis
+                width={48}
+                tickLine={false}
+                axisLine={false}
+                tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+                tickFormatter={(v: number) => (chartMetric === "receita" ? `R$${v}` : `${v}`)}
+              />
               <ReTooltip
-                contentStyle={{
-                  background: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 12,
-                  color: "var(--color-foreground)",
-                }}
-                formatter={(v: number, n) => (n === "receita" ? BRL(v) : `${v} kWh`)}
+                cursor={{ stroke: "var(--color-border)" }}
+                contentStyle={chartTooltip}
+                labelStyle={{ color: "var(--color-muted-foreground)", fontSize: 12 }}
+                formatter={(v: number) => [
+                  chartMetric === "receita" ? BRL(v) : `${fmt(v, 2)} kWh`,
+                  chartMetric === "receita" ? "Receita" : "Energia",
+                ]}
               />
               <Area
                 type="monotone"
-                dataKey="receita"
-                stroke="var(--color-primary)"
+                dataKey={chartMetric}
+                stroke={series}
                 strokeWidth={2}
-                fill="url(#rev)"
+                fill="url(#dash-fill)"
+                animationDuration={400}
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </Panel>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-3xl border border-border bg-card p-5">
-          <h2 className="font-semibold">Sessões ao vivo</h2>
-          {stats.live.length === 0 && (
-            <p className="mt-3 text-sm text-muted-foreground">Nenhuma recarga em andamento agora.</p>
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Panel className="lg:col-span-2">
+          <PanelHeader
+            title="Recargas em andamento"
+            description={stats.live.length ? `${stats.live.length} agora` : undefined}
+          />
+          {stats.live.length === 0 ? (
+            <EmptyState
+              icon={<BatteryCharging />}
+              title="Nenhuma recarga agora"
+              description="As recargas aparecem aqui assim que um motorista iniciar."
+              className="py-8"
+            />
+          ) : (
+            <ul className="divide-y divide-border">
+              {stats.live.map((s) => {
+                const charger = chargers.find((c) => c.id === s.charger_id);
+                return (
+                  <li key={s.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate font-medium">{charger?.name}</p>
+                      <StatusBadge status="occupied" />
+                    </div>
+                    <dl className="mt-2 grid grid-cols-4 gap-2 text-xs figures">
+                      <LiveFigure label="Potência" value={`${fmt(num(s.current_power_kw), 1)} kW`} />
+                      <LiveFigure label="Energia" value={`${fmt(num(s.energy_kwh), 2)} kWh`} />
+                      <LiveFigure label="Tempo" value={`${s.minutes} min`} />
+                      <LiveFigure label="Valor" value={BRL(num(s.cost))} strong />
+                    </dl>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-          <div className="mt-3 space-y-3">
-            {stats.live.map((s) => {
-              const charger = chargers.find((c) => c.id === s.charger_id);
-              return (
-                <div key={s.id} className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">{charger?.name}</h3>
-                    <Badge className="bg-success/15 text-success" variant="outline">
-                      Carregando
-                    </Badge>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-4">
-                    <span>{num(s.current_power_kw).toFixed(1)} kW</span>
-                    <span>{num(s.energy_kwh).toFixed(2)} kWh</span>
-                    <span>{s.minutes} min</span>
-                    <span className="font-semibold text-primary">{BRL(num(s.cost))}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        </Panel>
 
-        <div className="rounded-3xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Meus carregadores</h2>
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/merchant/chargers">Gerenciar</Link>
-            </Button>
-          </div>
-          <div className="mt-3 space-y-3">
+        <Panel className="lg:col-span-3">
+          <PanelHeader
+            title="Carregadores"
+            description={`${chargers.length} cadastrados`}
+            actions={
+              <Button asChild size="sm" variant="ghost">
+                <Link to="/merchant/chargers">Gerenciar</Link>
+              </Button>
+            }
+          />
+          <ul className="divide-y divide-border">
             {chargers.map((c) => {
               const cs = sessions.filter((s) => s.charger_id === c.id);
+              const revenue = cs.reduce((a, b) => a + num(b.cost), 0);
               return (
-                <div key={c.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border p-3">
-                  <div className="min-w-0">
+                <li
+                  key={c.id}
+                  className={cn("relative flex items-center gap-3 py-3 pl-5 pr-4", statusRail(c.status))}
+                >
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {cs.length} sessões · {BRL(cs.reduce((a, b) => a + num(b.cost), 0))}
+                    <p className="truncate text-xs text-muted-foreground">{c.address}</p>
+                  </div>
+                  <div className="hidden text-right text-xs figures sm:block">
+                    <p className="font-medium text-foreground">{BRL(revenue)}</p>
+                    <p className="text-muted-foreground">
+                      {cs.length} {cs.length === 1 ? "recarga" : "recargas"}
                     </p>
                   </div>
-                  <Badge variant="outline" className={statusTone[c.status]}>
-                    {statusLabel[c.status]}
-                  </Badge>
-                </div>
+                  <StatusBadge status={c.status} />
+                </li>
               );
             })}
-          </div>
-        </div>
+          </ul>
+        </Panel>
       </div>
     </div>
   );
 }
 
-function Kpi({
-  icon: Icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: typeof Zap;
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
+const chartTooltip = {
+  background: "var(--color-popover)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 8,
+  boxShadow: "var(--elev-md)",
+  color: "var(--color-foreground)",
+  fontSize: 12,
+  padding: "8px 10px",
+};
+
+function LiveFigure({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <Icon className="size-4 text-primary" />
-      <p className="mt-2 text-xs text-muted-foreground">{label}</p>
-      <p className="font-display text-xl font-bold">{value}</p>
+    <div className="min-w-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={cn("truncate", strong ? "font-semibold text-foreground" : "text-foreground")}>{value}</dd>
     </div>
   );
 }
