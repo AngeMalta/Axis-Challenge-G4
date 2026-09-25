@@ -230,7 +230,7 @@ function MerchantChargers() {
                 <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
                   <MapPin className="mr-2 size-4" /> Usar minha localização
                 </Button>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <Field label="R$/kWh">
                     <Input
                       value={form.price_per_kwh}

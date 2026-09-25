@@ -157,6 +157,32 @@
     0 18px 50px -20px color-mix(in oklch, var(--primary) 60%, transparent);
 }
 
+/* App chrome measurements, shared by the shell, the map page and the chat launcher */
+:root {
+  --app-header-h: 4rem;
+  --app-bottom-nav-h: calc(4rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 48rem) {
+  :root {
+    --app-bottom-nav-h: 0px;
+  }
+}
+
+@layer components {
+  /* Map page fills the viewport between header and bottom nav (dvh ignores the mobile URL bar) */
+  .map-page-h {
+    height: calc(100vh - var(--app-header-h) - var(--app-bottom-nav-h) - 1.5rem);
+    height: calc(100dvh - var(--app-header-h) - var(--app-bottom-nav-h) - 1.5rem);
+    min-height: 26rem;
+  }
+  @media (min-width: 48rem) {
+    .map-page-h {
+      height: calc(100vh - var(--app-header-h) - 2rem);
+      height: calc(100dvh - var(--app-header-h) - 2rem);
+    }
+  }
+}
+
 /* Leaflet base styles (bundled locally, themed) */
 .leaflet-container {
   height: 100%;
@@ -175,4 +201,31 @@
 }
 .leaflet-control-attribution a {
   color: var(--muted-foreground) !important;
+}
+.leaflet-bar {
+  border: 1px solid var(--border) !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+  overflow: hidden;
+  box-shadow: 0 4px 14px -6px rgb(0 0 0 / 0.35) !important;
+}
+.leaflet-bar a {
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+.leaflet-bar a:hover {
+  background: var(--accent) !important;
+}
+.leaflet-tooltip {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+  font-family: var(--font-sans);
+}
+.leaflet-tooltip-top::before {
+  border-top-color: var(--popover);
 }

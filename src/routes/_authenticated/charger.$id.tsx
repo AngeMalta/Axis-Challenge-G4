@@ -170,9 +170,9 @@ function ChargerDetail() {
         <div className="space-y-4">
           <div className="overflow-hidden rounded-2xl border border-border bg-muted">
             {photos.length ? (
-              <img src={photos[photo]} alt={charger.name} className="h-72 w-full object-cover" />
+              <img src={photos[photo]} alt={charger.name} className="h-52 w-full object-cover sm:h-72" />
             ) : (
-              <div className="grid h-72 place-items-center text-muted-foreground">
+              <div className="grid h-52 place-items-center text-muted-foreground sm:h-72">
                 <Zap className="size-10" />
               </div>
             )}

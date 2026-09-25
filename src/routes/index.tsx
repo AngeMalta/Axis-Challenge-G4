@@ -37,12 +37,12 @@ const merchantFeatures = [
 
 function Landing() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+    <div className="min-h-dvh bg-background">
+      <header className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4">
         <AxisLogo />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <ThemeToggle />
-          <Button asChild variant="ghost">
+          <Button asChild variant="ghost" className="max-[380px]:hidden">
             <Link to="/auth">Entrar</Link>
           </Button>
           <Button asChild>
@@ -52,15 +52,15 @@ function Landing() {
       </header>
 
       <section className="axis-grid relative overflow-hidden border-y border-border">
-        <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20 md:py-28">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary">
             Linha HCA G2
           </span>
-          <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-[1.05] md:text-6xl">
+          <h1 className="mt-6 max-w-3xl text-[2rem] font-bold leading-[1.08] text-balance sm:text-5xl md:text-6xl md:leading-[1.05]">
             Recarga elétrica circular no comércio,{" "}
             <span className="text-primary">controlada de ponta a ponta</span>.
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-muted-foreground">
+          <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
             O motorista acha o carregador certo. O comerciante enxerga consumo, energia por minuto e lucro em
             tempo real.
           </p>

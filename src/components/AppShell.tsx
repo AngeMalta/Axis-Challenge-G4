@@ -54,9 +54,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const initials = (profile?.display_name ?? "AX").slice(0, 2).toUpperCase();
+  const isMapPage = pathname === "/map";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
           <Link to="/map">
@@ -109,10 +110,23 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-6 md:pb-10">{children}</main>
+      <main
+        className={cn(
+          "mx-auto max-w-7xl px-3 sm:px-4",
+          // The map page sizes itself to the viewport, so it only needs a thin gutter.
+          isMapPage
+            ? "pb-[calc(var(--app-bottom-nav-h)+0.75rem)] pt-3 md:pb-4 md:pt-4"
+            : "pb-[calc(var(--app-bottom-nav-h)+5rem)] pt-5 md:pb-24 md:pt-6",
+        )}
+      >
+        {children}
+      </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
-        <div className="flex items-center justify-around px-2 py-2">
+      <nav
+        aria-label="Navegação principal"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      >
+        <div className="flex h-16 items-center justify-around px-2">
           {nav.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.to;
