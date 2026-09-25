@@ -13,8 +13,14 @@ export type MapCharger = {
   photos: string[];
 };
 
-const colorFor = (status: string) =>
-  status === "available" ? "#22c55e" : status === "occupied" ? "#f59e0b" : "#ef4444";
+// Hex twins of the status tokens in styles.css (Leaflet HTML cannot read CSS variables reliably).
+const pinColors: Record<string, string> = {
+  available: "#1a9468",
+  occupied: "#2f63c9",
+  maintenance: "#c07a1a",
+};
+
+const colorFor = (status: string) => pinColors[status] ?? "#737d82";
 
 const escapeHtml = (value: string) =>
   value.replace(
@@ -126,7 +132,7 @@ export default function ChargerMap({
         radius: 8,
         color: "#fff",
         weight: 3,
-        fillColor: "#ef4444",
+        fillColor: "#d4202c",
         fillOpacity: 1,
       })
         .addTo(layer)
@@ -139,7 +145,7 @@ export default function ChargerMap({
           [userPosition.lat, userPosition.lng],
           [routeTo.lat, routeTo.lng],
         ],
-        { color: "#ef4444", weight: 4, dashArray: "8 8", opacity: 0.8 },
+        { color: "#2f63c9", weight: 4, dashArray: "8 8", opacity: 0.85 },
       ).addTo(layer);
       map.fitBounds(
         L.latLngBounds([userPosition.lat, userPosition.lng], [routeTo.lat, routeTo.lng]).pad(0.35),

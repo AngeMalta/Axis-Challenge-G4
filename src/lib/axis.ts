@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { chargerStatus } from "@/lib/status";
 
 export const BRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
@@ -31,19 +32,14 @@ export function chargeMinutes(targetKwh: number, powerKw: number) {
 
 export const SAO_PAULO = { lat: -23.5613, lng: -46.656 };
 
-export const statusLabel: Record<string, string> = {
-  available: "Disponível",
-  occupied: "Ocupado",
-  offline: "Offline",
-  maintenance: "Manutenção",
-};
+// Kept for existing imports; the vocabulary and colors live in src/lib/status.ts.
+export const statusLabel: Record<string, string> = Object.fromEntries(
+  Object.entries(chargerStatus).map(([k, v]) => [k, v.label]),
+);
 
-export const statusTone: Record<string, string> = {
-  available: "bg-success/15 text-success border-success/30",
-  occupied: "bg-warning/15 text-warning border-warning/30",
-  offline: "bg-muted text-muted-foreground border-border",
-  maintenance: "bg-primary/15 text-primary border-primary/30",
-};
+export const statusTone: Record<string, string> = Object.fromEntries(
+  Object.entries(chargerStatus).map(([k, v]) => [k, v.badge]),
+);
 
 const TEN_YEARS = 60 * 60 * 24 * 365 * 10;
 
@@ -74,3 +70,9 @@ export function downloadCsv(filename: string, csv: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/** pt-BR number with a fixed number of decimals (1.234,5) */
+export const fmt = (v: number, digits = 1) =>
+  new Intl.NumberFormat("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(
+    Number.isFinite(v) ? v : 0,
+  );
