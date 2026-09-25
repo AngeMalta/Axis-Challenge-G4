@@ -15,6 +15,8 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { MapCanvas } from "@/components/MapCanvas";
+import { ChargerImage } from "@/components/ChargerImage";
+import { chargerCover } from "@/constants/chargerImages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -169,13 +171,12 @@ function ChargerDetail() {
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <div className="space-y-4">
           <div className="overflow-hidden rounded-2xl border border-border bg-muted">
-            {photos.length ? (
-              <img src={photos[photo]} alt={charger.name} className="h-52 w-full object-cover sm:h-72" />
-            ) : (
-              <div className="grid h-52 place-items-center text-muted-foreground sm:h-72">
-                <Zap className="size-10" />
-              </div>
-            )}
+            <ChargerImage
+              src={photos[photo] ?? chargerCover(photos, charger.id)}
+              seed={charger.id}
+              alt={charger.name}
+              className="h-52 w-full object-cover sm:h-72"
+            />
           </div>
           {photos.length > 1 && (
             <div className="flex gap-2 overflow-x-auto">
@@ -183,11 +184,12 @@ function ChargerDetail() {
                 <button
                   key={p}
                   onClick={() => setPhoto(i)}
+                  aria-label={`Ver foto ${i + 1}`}
                   className={`size-16 shrink-0 overflow-hidden rounded-lg border-2 ${
                     i === photo ? "border-primary" : "border-transparent"
                   }`}
                 >
-                  <img src={p} alt="" className="size-full object-cover" />
+                  <ChargerImage src={p} seed={charger.id} className="size-full object-cover" />
                 </button>
               ))}
             </div>

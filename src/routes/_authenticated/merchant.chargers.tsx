@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2, MapPin, Pencil, Plus, Power, Trash2 } from "lucide-react";
+import { Check, ImagePlus, Loader2, MapPin, Pencil, Plus, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppShell";
 import { useMerchantData } from "@/hooks/useMerchantData";
 import { BRL, num, statusLabel, statusTone, uploadImage } from "@/lib/axis";
+import { ChargerImage } from "@/components/ChargerImage";
+import {
+  chargerCover,
+  chargerImages,
+  randomChargerImage,
+} from "@/constants/chargerImages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -101,7 +107,8 @@ function MerchantChargers() {
           .split(",")
           .map((a) => a.trim())
           .filter(Boolean),
-        photos: form.photos,
+        // Every charger needs a picture: without one, pick a random built-in image.
+        photos: form.photos.length ? form.photos : [randomChargerImage()],
         is_active: form.is_active,
       };
       if (form.id) {
@@ -138,8 +145,19 @@ function MerchantChargers() {
     refresh();
   };
 
+  const togglePreset = (src: string) =>
+    setForm((f) => ({
+      ...f,
+      photos: f.photos.includes(src) ? f.photos.filter((p) => p !== src) : [...f.photos, src],
+    }));
+
   const addPhoto = async (file?: File) => {
+    if (fileRef.current) fileRef.current.value = ""; // allow picking the same file again
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Escolha um arquivo de imagem (JPG, PNG ou WebP)");
+      return;
+    }
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return;
     setUploading(true);
@@ -284,13 +302,20 @@ function MerchantChargers() {
                     placeholder="Café, Wi-Fi, Banheiro"
                   />
                 </Field>
-                <div>
-                  <Label className="text-sm">Fotos</Label>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm">Fotos</Label>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Envie uma foto do seu carregador ou escolha uma imagem padrão. Se salvar sem
+                      imagem, usamos uma imagem padrão aleatória.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {form.photos.map((p) => (
                       <div key={p} className="relative size-20 overflow-hidden rounded-lg border border-border">
-                        <img src={p} alt="" className="size-full object-cover" />
+                        <ChargerImage src={p} seed={form.id} className="size-full object-cover" />
                         <button
+                          type="button"
                           onClick={() => setForm({ ...form, photos: form.photos.filter((x) => x !== p) })}
                           className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-destructive text-destructive-foreground"
                           aria-label="Remover foto"
@@ -300,10 +325,13 @@ function MerchantChargers() {
                       </div>
                     ))}
                     <button
+                      type="button"
                       onClick={() => fileRef.current?.click()}
-                      className="grid size-20 place-items-center rounded-lg border border-dashed border-border text-muted-foreground"
+                      disabled={uploading}
+                      className="flex size-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-[11px] text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                     >
                       {uploading ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
+                      {uploading ? "Enviando" : "Enviar foto"}
                     </button>
                     <input
                       ref={fileRef}
@@ -312,6 +340,34 @@ function MerchantChargers() {
                       hidden
                       onChange={(e) => addPhoto(e.target.files?.[0])}
                     />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Imagens padrão</p>
+                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                      {chargerImages.map((img) => {
+                        const picked = form.photos.includes(img.src);
+                        return (
+                          <button
+                            key={img.id}
+                            type="button"
+                            onClick={() => togglePreset(img.src)}
+                            aria-pressed={picked}
+                            aria-label={img.label}
+                            title={img.label}
+                            className={`relative aspect-[4/3] overflow-hidden rounded-lg border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                              picked ? "border-primary" : "border-transparent opacity-80 hover:opacity-100"
+                            }`}
+                          >
+                            <img src={img.src} alt="" className="size-full object-cover" />
+                            {picked && (
+                              <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-primary text-primary-foreground">
+                                <Check className="size-3" />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-border p-3">
@@ -343,7 +399,12 @@ function MerchantChargers() {
           return (
             <div key={c.id} className="overflow-hidden rounded-2xl border border-border bg-card">
               <div className="h-36 bg-muted">
-                {c.photos?.[0] && <img src={c.photos[0]} alt={c.name} className="size-full object-cover" />}
+                <ChargerImage
+                  src={chargerCover(c.photos, c.id)}
+                  seed={c.id}
+                  alt={c.name}
+                  className="size-full object-cover"
+                />
               </div>
               <div className="space-y-3 p-4">
                 <div className="flex items-start justify-between gap-2">

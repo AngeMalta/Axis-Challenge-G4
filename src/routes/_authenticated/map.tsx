@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Clock, Crosshair, List, Map as MapIcon, Navigation, Search, X, Zap } from "lucide-react";
+import { Clock, Crosshair, List, Map as MapIcon, Navigation, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MapCanvas } from "@/components/MapCanvas";
+import { ChargerImage } from "@/components/ChargerImage";
+import { chargerCover } from "@/constants/chargerImages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,13 +192,12 @@ function MapPage() {
             }`}
           >
             <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-muted sm:size-20">
-              {c.photos?.[0] ? (
-                <img src={c.photos[0]} alt="" className="size-full object-cover" loading="lazy" />
-              ) : (
-                <div className="grid size-full place-items-center text-muted-foreground">
-                  <Zap className="size-6" />
-                </div>
-              )}
+              <ChargerImage
+                src={chargerCover(c.photos, c.id)}
+                seed={c.id}
+                className="size-full object-cover"
+                loading="lazy"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
@@ -239,13 +240,11 @@ function MapPage() {
           // Right margin on phones leaves room for the chat launcher.
           <div className="absolute inset-x-2 bottom-2 z-[1000] mr-[4.25rem] flex items-center gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-lg backdrop-blur sm:inset-x-3 sm:bottom-3 md:mr-0 md:max-w-md">
             <div className="size-12 shrink-0 overflow-hidden rounded-xl bg-muted">
-              {selectedCharger.photos?.[0] ? (
-                <img src={selectedCharger.photos[0]} alt="" className="size-full object-cover" />
-              ) : (
-                <div className="grid size-full place-items-center text-muted-foreground">
-                  <Zap className="size-5" />
-                </div>
-              )}
+              <ChargerImage
+                src={chargerCover(selectedCharger.photos, selectedCharger.id)}
+                seed={selectedCharger.id}
+                className="size-full object-cover"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="truncate text-sm font-semibold">{selectedCharger.name}</h3>

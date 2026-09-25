@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { chargerCover, fallbackChargerImage } from "@/constants/chargerImages";
 
 export type MapCharger = {
   id: string;
@@ -22,7 +23,7 @@ const escapeHtml = (value: string) =>
   );
 
 function pinIcon(c: MapCharger, selected: boolean) {
-  const photo = c.photos?.[0];
+  const photo = chargerCover(c.photos, c.id);
   const color = colorFor(c.status);
   const size = selected ? 56 : 46;
   return L.divIcon({
@@ -31,11 +32,7 @@ function pinIcon(c: MapCharger, selected: boolean) {
     iconAnchor: [size / 2, size + 8],
     html: `<div style="position:relative;width:${size}px;height:${size + 10}px">
       <div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;border:3px solid ${color};box-shadow:0 6px 16px rgba(0,0,0,.35);background:#1a1a1a">
-        ${
-          photo
-            ? `<img src="${escapeHtml(photo)}" alt="" style="width:100%;height:100%;object-fit:cover" />`
-            : `<div style="display:grid;place-items:center;width:100%;height:100%;color:${color};font-weight:700">&#9889;</div>`
-        }
+        <img src="${escapeHtml(photo)}" alt="" style="width:100%;height:100%;object-fit:cover" />
       </div>
       <div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid ${color}"></div>
     </div>`,
@@ -108,6 +105,20 @@ export default function ChargerMap({
         { direction: "top", offset: [0, selected ? -60 : -50] },
       );
       marker.on("click", () => onSelect?.(c.id));
+
+      // Broken photo URL (e.g. expired link): swap to the charger's built-in image.
+      const fallback = fallbackChargerImage(c.id);
+      marker
+        .getElement()
+        ?.querySelector("img")
+        ?.addEventListener(
+          "error",
+          (e) => {
+            const img = e.currentTarget as HTMLImageElement;
+            if (img.src !== fallback) img.src = fallback;
+          },
+          { once: true },
+        );
     });
 
     if (userPosition) {
