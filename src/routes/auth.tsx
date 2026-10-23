@@ -34,6 +34,7 @@ function AuthPage() {
   const [accountType, setAccountType] = useState<"driver" | "merchant">(mode ?? "driver");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -197,7 +198,7 @@ function AuthPage() {
                 </Label>
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete={tab === "signin" ? "current-password" : "new-password"}
                   required
                   minLength={6}
@@ -205,6 +206,16 @@ function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mínimo de 6 caracteres"
                 />
+                <label className="inline-flex cursor-pointer select-none items-center gap-2 pt-0.5 text-[0.8125rem] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={showPassword}
+                    onChange={(e) => setShowPassword(e.target.checked)}
+                    aria-controls="password"
+                    className="size-4 cursor-pointer rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  Mostrar senha
+                </label>
               </div>
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
                 {loading && <Loader2 className="animate-spin" />}
