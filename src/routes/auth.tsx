@@ -72,6 +72,13 @@ function AuthPage() {
   };
 
   const google = async () => {
+    // Google sign-in goes through Lovable's OAuth broker (/~oauth), which only exists
+    // on Lovable hosting; a local dev server answers 404 and Supabase has no Google
+    // secret of its own. Explain instead of sending people to a dead page.
+    if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+      toast.error("Login com Google só funciona na versão publicada. Aqui, use e-mail e senha.");
+      return;
+    }
     const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
     if (result.error) {
       toast.error("Falha ao entrar com Google");
